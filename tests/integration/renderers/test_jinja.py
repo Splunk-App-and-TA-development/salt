@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 
+import pytest
 import salt.utils.files
 from tests.support.case import ModuleCase, ShellCase
 from tests.support.helpers import with_tempdir
@@ -10,6 +8,7 @@ from tests.support.helpers import with_tempdir
 
 class JinjaRendererTest(ModuleCase):
     @with_tempdir()
+    @pytest.mark.slow_test
     def test_issue_54765(self, tmpdir):
         file_path = os.path.join(tmpdir, "issue-54765")
         ret = self.run_function(
@@ -24,6 +23,7 @@ class JinjaRendererTest(ModuleCase):
 
 class JinjaRenderCallTest(ShellCase):
     @with_tempdir()
+    @pytest.mark.slow_test
     def test_issue_54765(self, tmpdir):
         file_path = os.path.join(tmpdir, "issue-54765")
         pillar_str = '\'{{"file_path": "{}"}}\''.format(file_path)

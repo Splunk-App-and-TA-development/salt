@@ -1,14 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Tests for the state runner
 """
 
-# Import Python Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import errno
 import logging
 import os
+import queue
 import shutil
 import signal
 import tempfile
@@ -16,7 +13,7 @@ import textwrap
 import threading
 import time
 
-# Import Salt Libs
+import pytest
 import salt.exceptions
 import salt.utils.event
 import salt.utils.files
@@ -24,15 +21,9 @@ import salt.utils.json
 import salt.utils.platform
 import salt.utils.stringutils
 import salt.utils.yaml
-
-# Import 3rd-party libs
-from salt.ext import six
-from salt.ext.six.moves import queue
 from tests.support.case import ShellCase
-from tests.support.helpers import expensiveTest, flaky
+from tests.support.helpers import flaky
 from tests.support.mock import MagicMock, patch
-
-# Import Salt Testing Libs
 from tests.support.runtests import RUNTIME_VARS
 from tests.support.unit import skipIf
 
@@ -45,6 +36,8 @@ class StateRunnerTest(ShellCase):
     Test the state runner.
     """
 
+    RUN_TIMEOUT = 300
+
     def add_to_queue(self, q, cmd):
         """
         helper method to add salt-run
@@ -54,6 +47,7 @@ class StateRunnerTest(ShellCase):
         q.put(ret)
         q.task_done()
 
+    @pytest.mark.slow_test
     def test_orchestrate_output(self):
         """
         Ensure the orchestrate runner outputs useful state data.
@@ -83,6 +77,7 @@ class StateRunnerTest(ShellCase):
         for item in good_out:
             assert item in ret_output
 
+    @pytest.mark.slow_test
     def test_orchestrate_nested(self):
         """
         test salt-run state.orchestrate and failhard with nested orchestration
@@ -95,6 +90,7 @@ class StateRunnerTest(ShellCase):
         assert os.path.exists("/tmp/ewu-2016-12-13") is False
         assert code != 0
 
+    @pytest.mark.slow_test
     def test_orchestrate_with_mine(self):
         """
         test salt-run state.orchestrate with mine.get call in sls
@@ -111,9 +107,10 @@ class StateRunnerTest(ShellCase):
             except AssertionError:
                 if time.time() > fail_time:
                     self.fail(
-                        '"{0}" was not found in the orchestration call'.format(exp_ret)
+                        '"{}" was not found in the orchestration call'.format(exp_ret)
                     )
 
+    @pytest.mark.slow_test
     def test_orchestrate_state_and_function_failure(self):
         """
         Ensure that returns from failed minions are in the changes dict where
@@ -165,6 +162,7 @@ class StateRunnerTest(ShellCase):
 
         self.assertEqual(func_ret, {"out": "highstate", "ret": {"minion": False}})
 
+    @pytest.mark.slow_test
     def test_orchestrate_target_exists(self):
         """
         test orchestration when target exists
@@ -192,6 +190,7 @@ class StateRunnerTest(ShellCase):
             for item in out:
                 assert item in ret
 
+    @pytest.mark.slow_test
     def test_orchestrate_retcode(self):
         """
         Test orchestration with nonzero retcode set in __context__
@@ -220,12 +219,13 @@ class StateRunnerTest(ShellCase):
         ):
             self.assertIn(result, ret)
 
-    def test_orchestrate_target_doesnt_exist(self):
+    @pytest.mark.slow_test
+    def test_orchestrate_target_does_not_exist(self):
         """
         test orchestration when target doesn't exist
         while using multiple states
         """
-        ret = self.run_run("state.orchestrate orch.target-doesnt-exists")
+        ret = self.run_run("state.orchestrate orch.target-does-not-exist")
 
         first = [
             "No minions matched the target. No command was sent, no jid was assigned.",
@@ -252,6 +252,7 @@ class StateRunnerTest(ShellCase):
             for item in out:
                 assert item in ret
 
+    @pytest.mark.slow_test
     def test_orchestrate_batch_with_failhard_error(self):
         """
         test orchestration properly stops with failhard and batch.
@@ -282,6 +283,7 @@ class StateRunnerTest(ShellCase):
             # The execution should stop after first error, so return dict should contain only one minion
             assert len(changes_ret) == 1
 
+    @pytest.mark.slow_test
     def test_state_event(self):
         """
         test to ensure state.event
@@ -298,10 +300,11 @@ class StateRunnerTest(ShellCase):
         while q.empty():
             self.run_salt("minion test.ping --static")
         out = q.get()
-        assert expect in six.text_type(out)
+        assert expect in str(out)
 
         server_thread.join()
 
+    @pytest.mark.slow_test
     def test_orchestrate_subset(self):
         """
         test orchestration state using subset
@@ -315,6 +318,7 @@ class StateRunnerTest(ShellCase):
         assert count("Succeeded: 1", ret) == 1
         assert count("Failed:    0", ret) == 1
 
+    @pytest.mark.slow_test
     def test_orchestrate_salt_function_return_false_failure(self):
         """
         Ensure that functions that only return False in the return
@@ -346,9 +350,11 @@ class OrchEventTest(ShellCase):
     Tests for orchestration events
     """
 
+    RUN_TIMEOUT = 300
+
     def setUp(self):
         self.timeout = 60
-        self.master_d_dir = os.path.join(self.config_dir, "master.d")
+        self.master_d_dir = os.path.join(RUNTIME_VARS.TMP_CONF_DIR, "master.d")
         try:
             os.makedirs(self.master_d_dir)
         except OSError as exc:
@@ -359,16 +365,29 @@ class OrchEventTest(ShellCase):
             mode="w", suffix=".conf", dir=self.master_d_dir, delete=True,
         )
         self.base_env = tempfile.mkdtemp(dir=RUNTIME_VARS.TMP)
-        self.addCleanup(shutil.rmtree, self.base_env)
-        self.addCleanup(self.conf.close)
-        for attr in ("timeout", "master_d_dir", "conf", "base_env"):
-            self.addCleanup(delattr, self, attr)
+
+    def tearDown(self):
+        try:
+            shutil.rmtree(self.base_env, ignore_errors=True)
+            del self.base_env
+        except AttributeError:
+            pass
+        try:
+            self.conf.close()
+            del self.conf
+        except AttributeError:
+            pass
+        for attr in ("timeout", "master_d_dir"):
+            try:
+                delattr(self, attr)
+            except AttributeError:
+                pass
         # Force a reload of the configuration now that our temp config file has
         # been removed.
-        self.addCleanup(self.run_run_plus, "test.arg", __reload_config=True)
+        self.run_run_plus("test.arg")
 
     def alarm_handler(self, signal, frame):
-        raise Exception("Timeout of {0} seconds reached".format(self.timeout))
+        raise Exception("Timeout of {} seconds reached".format(self.timeout))
 
     def write_conf(self, data):
         """
@@ -377,7 +396,7 @@ class OrchEventTest(ShellCase):
         self.conf.write(salt.utils.yaml.safe_dump(data, default_flow_style=False))
         self.conf.flush()
 
-    @expensiveTest
+    @pytest.mark.slow_test
     def test_jid_in_ret_event(self):
         """
         Test to confirm that the ret event for the orchestration contains the
@@ -426,40 +445,37 @@ class OrchEventTest(ShellCase):
                 )
             )
 
-        listener = salt.utils.event.get_event(
+        with salt.utils.event.get_event(
             "master",
             sock_dir=self.master_opts["sock_dir"],
             transport=self.master_opts["transport"],
             opts=self.master_opts,
-        )
+        ) as listener:
 
-        jid = self.run_run_plus(
-            "state.orchestrate", "test_orch", __reload_config=True
-        ).get("jid")
+            jid = self.run_run_plus("state.orchestrate", "test_orch").get("jid")
 
-        if jid is None:
-            raise Exception("jid missing from run_run_plus output")
+            if jid is None:
+                raise Exception("jid missing from run_run_plus output")
 
-        signal.signal(signal.SIGALRM, self.alarm_handler)
-        signal.alarm(self.timeout)
-        try:
-            while True:
-                event = listener.get_event(full=True)
-                if event is None:
-                    continue
+            signal.signal(signal.SIGALRM, self.alarm_handler)
+            signal.alarm(self.timeout)
+            try:
+                while True:
+                    event = listener.get_event(full=True)
+                    if event is None:
+                        continue
 
-                if event["tag"] == "salt/run/{0}/ret".format(jid):
-                    # Don't wrap this in a try/except. We want to know if the
-                    # data structure is different from what we expect!
-                    ret = event["data"]["return"]["data"]["master"]
-                    for job in ret:
-                        self.assertTrue("__jid__" in ret[job])
-                    break
-        finally:
-            del listener
-            signal.alarm(0)
+                    if event["tag"] == "salt/run/{}/ret".format(jid):
+                        # Don't wrap this in a try/except. We want to know if the
+                        # data structure is different from what we expect!
+                        ret = event["data"]["return"]["data"]["master"]
+                        for job in ret:
+                            self.assertTrue("__jid__" in ret[job])
+                        break
+            finally:
+                signal.alarm(0)
 
-    @expensiveTest
+    @pytest.mark.slow_test
     def test_parallel_orchestrations(self):
         """
         Test to confirm that the parallel state requisite works in orch
@@ -498,52 +514,49 @@ class OrchEventTest(ShellCase):
 
         orch_sls = os.path.join(self.base_env, "test_par_orch.sls")
 
-        listener = salt.utils.event.get_event(
+        with salt.utils.event.get_event(
             "master",
             sock_dir=self.master_opts["sock_dir"],
             transport=self.master_opts["transport"],
             opts=self.master_opts,
-        )
+        ) as listener:
 
-        start_time = time.time()
-        jid = self.run_run_plus(
-            "state.orchestrate", "test_par_orch", __reload_config=True
-        ).get("jid")
+            start_time = time.time()
+            jid = self.run_run_plus("state.orchestrate", "test_par_orch").get("jid")
 
-        if jid is None:
-            raise Exception("jid missing from run_run_plus output")
+            if jid is None:
+                raise Exception("jid missing from run_run_plus output")
 
-        signal.signal(signal.SIGALRM, self.alarm_handler)
-        signal.alarm(self.timeout)
-        received = False
-        try:
-            while True:
-                event = listener.get_event(full=True)
-                if event is None:
-                    continue
+            signal.signal(signal.SIGALRM, self.alarm_handler)
+            signal.alarm(self.timeout)
+            received = False
+            try:
+                while True:
+                    event = listener.get_event(full=True)
+                    if event is None:
+                        continue
 
-                # if we receive the ret for this job before self.timeout (60),
-                # the test is implicitly sucessful; if it were happening in serial it would be
-                # atleast 110 seconds.
-                if event["tag"] == "salt/run/{0}/ret".format(jid):
-                    received = True
-                    # Don't wrap this in a try/except. We want to know if the
-                    # data structure is different from what we expect!
-                    ret = event["data"]["return"]["data"]["master"]
-                    for state in ret:
-                        data = ret[state]
-                        # we expect each duration to be greater than 10s
-                        self.assertTrue(data["duration"] > 10000)
-                    break
+                    # if we receive the ret for this job before self.timeout (60),
+                    # the test is implicitly successful; if it were happening in serial it would be
+                    # atleast 110 seconds.
+                    if event["tag"] == "salt/run/{}/ret".format(jid):
+                        received = True
+                        # Don't wrap this in a try/except. We want to know if the
+                        # data structure is different from what we expect!
+                        ret = event["data"]["return"]["data"]["master"]
+                        for state in ret:
+                            data = ret[state]
+                            # we expect each duration to be greater than 10s
+                            self.assertTrue(data["duration"] > 10000)
+                        break
 
-                # self confirm that the total runtime is roughly 30s (left 10s for buffer)
-                self.assertTrue((time.time() - start_time) < 40)
-        finally:
-            self.assertTrue(received)
-            del listener
-            signal.alarm(0)
+                    # self confirm that the total runtime is roughly 30s (left 10s for buffer)
+                    self.assertTrue((time.time() - start_time) < 40)
+            finally:
+                self.assertTrue(received)
+                signal.alarm(0)
 
-    @expensiveTest
+    @pytest.mark.slow_test
     def test_orchestration_soft_kill(self):
         """
         Test to confirm that the parallel state requisite works in orch
@@ -568,48 +581,48 @@ class OrchEventTest(ShellCase):
                 )
             )
 
-        listener = salt.utils.event.get_event(
+        with salt.utils.event.get_event(
             "master",
             sock_dir=self.master_opts["sock_dir"],
             transport=self.master_opts["transport"],
             opts=self.master_opts,
-        )
+        ) as listener:
 
-        mock_jid = "20131219120000000000"
-        self.run_run("state.soft_kill {0} stage_two".format(mock_jid))
-        with patch("salt.utils.jid.gen_jid", MagicMock(return_value=mock_jid)):
-            jid = self.run_run_plus(
-                "state.orchestrate", "two_stage_orch_kill", __reload_config=True
-            ).get("jid")
+            mock_jid = "20131219120000000000"
+            self.run_run("state.soft_kill {} stage_two".format(mock_jid))
+            with patch("salt.utils.jid.gen_jid", MagicMock(return_value=mock_jid)):
+                jid = self.run_run_plus("state.orchestrate", "two_stage_orch_kill").get(
+                    "jid"
+                )
 
-        if jid is None:
-            raise Exception("jid missing from run_run_plus output")
+            if jid is None:
+                raise Exception("jid missing from run_run_plus output")
 
-        signal.signal(signal.SIGALRM, self.alarm_handler)
-        signal.alarm(self.timeout)
-        received = False
-        try:
-            while True:
-                event = listener.get_event(full=True)
-                if event is None:
-                    continue
+            signal.signal(signal.SIGALRM, self.alarm_handler)
+            signal.alarm(self.timeout)
+            received = False
+            try:
+                while True:
+                    event = listener.get_event(full=True)
+                    if event is None:
+                        continue
 
-                # Ensure that stage_two of the state does not run
-                if event["tag"] == "salt/run/{0}/ret".format(jid):
-                    received = True
-                    # Don't wrap this in a try/except. We want to know if the
-                    # data structure is different from what we expect!
-                    ret = event["data"]["return"]["data"]["master"]
-                    self.assertNotIn(
-                        "test_|-stage_two_|-stage_two_|-fail_without_changes", ret
-                    )
-                    break
+                    # Ensure that stage_two of the state does not run
+                    if event["tag"] == "salt/run/{}/ret".format(jid):
+                        received = True
+                        # Don't wrap this in a try/except. We want to know if the
+                        # data structure is different from what we expect!
+                        ret = event["data"]["return"]["data"]["master"]
+                        self.assertNotIn(
+                            "test_|-stage_two_|-stage_two_|-fail_without_changes", ret
+                        )
+                        break
 
-        finally:
-            self.assertTrue(received)
-            del listener
-            signal.alarm(0)
+            finally:
+                self.assertTrue(received)
+                signal.alarm(0)
 
+    @pytest.mark.slow_test
     def test_orchestration_with_pillar_dot_items(self):
         """
         Test to confirm when using a state file that includes other state file, if
@@ -670,45 +683,43 @@ class OrchEventTest(ShellCase):
 
         orch_sls = os.path.join(self.base_env, "main.sls")
 
-        listener = salt.utils.event.get_event(
+        with salt.utils.event.get_event(
             "master",
             sock_dir=self.master_opts["sock_dir"],
             transport=self.master_opts["transport"],
             opts=self.master_opts,
-        )
+        ) as listener:
 
-        jid = self.run_run_plus("state.orchestrate", "main", __reload_config=True).get(
-            "jid"
-        )
+            jid = self.run_run_plus("state.orchestrate", "main").get("jid")
 
-        if jid is None:
-            raise salt.exceptions.SaltInvocationError(
-                "jid missing from run_run_plus output"
-            )
+            if jid is None:
+                raise salt.exceptions.SaltInvocationError(
+                    "jid missing from run_run_plus output"
+                )
 
-        signal.signal(signal.SIGALRM, self.alarm_handler)
-        signal.alarm(self.timeout)
-        received = False
-        try:
-            while True:
-                event = listener.get_event(full=True)
-                if event is None:
-                    continue
-                if event.get("tag", "") == "salt/run/{0}/ret".format(jid):
-                    received = True
-                    # Don't wrap this in a try/except. We want to know if the
-                    # data structure is different from what we expect!
-                    ret = event["data"]["return"]["data"]["master"]
-                    for state in ret:
-                        data = ret[state]
-                        # Each state should be successful
-                        self.assertEqual(data["comment"], "Success!")
-                    break
-        finally:
-            self.assertTrue(received)
-            del listener
-            signal.alarm(0)
+            signal.signal(signal.SIGALRM, self.alarm_handler)
+            signal.alarm(self.timeout)
+            received = False
+            try:
+                while True:
+                    event = listener.get_event(full=True)
+                    if event is None:
+                        continue
+                    if event.get("tag", "") == "salt/run/{}/ret".format(jid):
+                        received = True
+                        # Don't wrap this in a try/except. We want to know if the
+                        # data structure is different from what we expect!
+                        ret = event["data"]["return"]["data"]["master"]
+                        for state in ret:
+                            data = ret[state]
+                            # Each state should be successful
+                            self.assertEqual(data["comment"], "Success!")
+                        break
+            finally:
+                self.assertTrue(received)
+                signal.alarm(0)
 
+    @pytest.mark.slow_test
     def test_orchestration_onchanges_and_prereq(self):
         """
         Test to confirm that the parallel state requisite works in orch
@@ -746,59 +757,57 @@ class OrchEventTest(ShellCase):
                 )
             )
 
-        listener = salt.utils.event.get_event(
+        with salt.utils.event.get_event(
             "master",
             sock_dir=self.master_opts["sock_dir"],
             transport=self.master_opts["transport"],
             opts=self.master_opts,
-        )
+        ) as listener:
 
-        try:
-            jid1 = self.run_run_plus(
-                "state.orchestrate", "orch", test=True, __reload_config=True
-            ).get("jid")
-
-            # Run for real to create the file
-            self.run_run_plus("state.orchestrate", "orch", __reload_config=True).get(
-                "jid"
-            )
-
-            # Run again in test mode. Since there were no changes, the
-            # requisites should not fire.
-            jid2 = self.run_run_plus(
-                "state.orchestrate", "orch", test=True, __reload_config=True
-            ).get("jid")
-        finally:
             try:
-                os.remove(os.path.join(RUNTIME_VARS.TMP, "orch.req_test"))
-            except OSError:
-                pass
+                jid1 = self.run_run_plus("state.orchestrate", "orch", test=True).get(
+                    "jid"
+                )
 
-        assert jid1 is not None
-        assert jid2 is not None
+                # Run for real to create the file
+                self.run_run_plus("state.orchestrate", "orch").get("jid")
 
-        tags = {"salt/run/{0}/ret".format(x): x for x in (jid1, jid2)}
-        ret = {}
+                # Run again in test mode. Since there were no changes, the
+                # requisites should not fire.
+                jid2 = self.run_run_plus("state.orchestrate", "orch", test=True).get(
+                    "jid"
+                )
+            finally:
+                try:
+                    os.remove(os.path.join(RUNTIME_VARS.TMP, "orch.req_test"))
+                except OSError:
+                    pass
 
-        signal.signal(signal.SIGALRM, self.alarm_handler)
-        signal.alarm(self.timeout)
-        try:
-            while True:
-                event = listener.get_event(full=True)
-                if event is None:
-                    continue
+            assert jid1 is not None
+            assert jid2 is not None
 
-                if event["tag"] in tags:
-                    ret[tags.pop(event["tag"])] = self.repack_state_returns(
-                        event["data"]["return"]["data"]["master"]
-                    )
-                    if not tags:
-                        # If tags is empty, we've grabbed all the returns we
-                        # wanted, so let's stop listening to the event bus.
-                        break
-        finally:
-            del listener
-            signal.alarm(0)
+            tags = {"salt/run/{}/ret".format(x): x for x in (jid1, jid2)}
+            ret = {}
+
+            signal.signal(signal.SIGALRM, self.alarm_handler)
+            signal.alarm(self.timeout)
+            try:
+                while True:
+                    event = listener.get_event(full=True)
+                    if event is None:
+                        continue
+
+                    if event["tag"] in tags:
+                        ret[tags.pop(event["tag"])] = self.repack_state_returns(
+                            event["data"]["return"]["data"]["master"]
+                        )
+                        if not tags:
+                            # If tags is empty, we've grabbed all the returns we
+                            # wanted, so let's stop listening to the event bus.
+                            break
+            finally:
+                del listener
+                signal.alarm(0)
 
         for sls_id in ("manage_a_file", "do_onchanges", "do_prereq"):
             # The first time through, all three states should have a None
@@ -806,12 +815,12 @@ class OrchEventTest(ShellCase):
             # True result.
             assert (
                 ret[jid1][sls_id]["result"] is None
-            ), "result of {0} ({1}) is not None".format(
+            ), "result of {} ({}) is not None".format(
                 sls_id, ret[jid1][sls_id]["result"]
             )
             assert (
                 ret[jid2][sls_id]["result"] is True
-            ), "result of {0} ({1}) is not True".format(
+            ), "result of {} ({}) is not True".format(
                 sls_id, ret[jid2][sls_id]["result"]
             )
 

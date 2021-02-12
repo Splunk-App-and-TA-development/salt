@@ -1,21 +1,14 @@
-# -*- coding: utf-8 -*-
 """
     :codeauthor: Nicole Thomas <nicole@saltstack.com>
 """
 
-# Import Salt Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 import traceback
 
-# Import Salt libs
+import pytest
 import salt.config
 import salt.utils.yaml
-from salt.ext import six
 from salt.output import display_output
-
-# Import Salt Testing Libs
 from tests.support.case import ShellCase
 from tests.support.mixins import RUNTIME_VARS
 
@@ -27,6 +20,7 @@ class OutputReturnTest(ShellCase):
     right outputter even though it was explicitly requested.
     """
 
+    @pytest.mark.slow_test
     def test_output_json(self):
         """
         Tests the return of json-formatted data
@@ -36,6 +30,7 @@ class OutputReturnTest(ShellCase):
         self.assertIn('"local": true', "".join(ret))
         self.assertIn("}", "".join(ret))
 
+    @pytest.mark.slow_test
     def test_output_nested(self):
         """
         Tests the return of nested-formatted data
@@ -44,6 +39,7 @@ class OutputReturnTest(ShellCase):
         ret = self.run_call("test.ping --out=nested")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_quiet(self):
         """
         Tests the return of an out=quiet query
@@ -52,22 +48,25 @@ class OutputReturnTest(ShellCase):
         ret = self.run_call("test.ping --out=quiet")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_pprint(self):
         """
         Tests the return of pprint-formatted data
         """
-        expected = ["{u'local': True}"] if six.PY2 else ["{'local': True}"]
+        expected = ["{'local': True}"]
         ret = self.run_call("test.ping --out=pprint")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_raw(self):
         """
         Tests the return of raw-formatted data
         """
-        expected = ["{u'local': True}"] if six.PY2 else ["{'local': True}"]
+        expected = ["{'local': True}"]
         ret = self.run_call("test.ping --out=raw")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_txt(self):
         """
         Tests the return of txt-formatted data
@@ -76,6 +75,7 @@ class OutputReturnTest(ShellCase):
         ret = self.run_call("test.ping --out=txt")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_yaml(self):
         """
         Tests the return of yaml-formatted data
@@ -84,6 +84,7 @@ class OutputReturnTest(ShellCase):
         ret = self.run_call("test.ping --out=yaml")
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_output_yaml_namespaced_dict_wrapper(self):
         """
         Tests the ability to dump a NamespacedDictWrapper instance, as used in
@@ -124,6 +125,7 @@ class OutputReturnTest(ShellCase):
                 else:
                     self.maxDiff = old_max_diff
 
+    @pytest.mark.slow_test
     def test_output_highstate(self):
         """
         Regression tests for the highstate outputter. Calls a basic state with various
@@ -173,6 +175,7 @@ class OutputReturnTest(ShellCase):
         for expected_item in expected:
             self.assertIn(expected_item, state_run)
 
+    @pytest.mark.slow_test
     def test_output_highstate_falls_back_nested(self):
         """
         Tests outputter when passing --out=highstate with a non-state call. This should
@@ -182,6 +185,7 @@ class OutputReturnTest(ShellCase):
         ret = self.run_salt('"minion" test.ping --out=highstate')
         self.assertEqual(ret, expected)
 
+    @pytest.mark.slow_test
     def test_static_simple(self):
         """
         Tests passing the --static option with a basic test.ping command. This

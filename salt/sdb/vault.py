@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Vault SDB Module
 
@@ -41,7 +40,6 @@ The above URI is analogous to running the following vault command:
 """
 
 # import python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 
@@ -60,11 +58,16 @@ def set_(key, value, profile=None):
         path, key = key.split("?")
     else:
         path, key = key.rsplit("/", 1)
+    data = {key: value}
+
+    version2 = __utils__["vault.is_v2"](path)
+    if version2["v2"]:
+        path = version2["data"]
+        data = {"data": data}
 
     try:
-        url = "v1/{0}".format(path)
-        data = {key: value}
-        response = __utils__["vault.make_request"]("POST", url, profile, json=data)
+        url = "v1/{}".format(path)
+        response = __utils__["vault.make_request"]("POST", url, json=data)
 
         if response.status_code != 204:
             response.raise_for_status()
@@ -83,17 +86,25 @@ def get(key, profile=None):
     else:
         path, key = key.rsplit("/", 1)
 
+    version2 = __utils__["vault.is_v2"](path)
+    if version2["v2"]:
+        path = version2["data"]
+
     try:
-        url = "v1/{0}".format(path)
-        response = __utils__["vault.make_request"]("GET", url, profile)
+        url = "v1/{}".format(path)
+        response = __utils__["vault.make_request"]("GET", url)
         if response.status_code == 404:
             return None
         if response.status_code != 200:
             response.raise_for_status()
         data = response.json()["data"]
 
-        if key in data:
-            return data[key]
+        if version2["v2"]:
+            if key in data["data"]:
+                return data["data"][key]
+        else:
+            if key in data:
+                return data[key]
         return None
     except Exception as e:  # pylint: disable=broad-except
         log.error("Failed to read secret! %s: %s", type(e).__name__, e)

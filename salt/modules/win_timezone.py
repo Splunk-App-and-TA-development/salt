@@ -1,17 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Module for managing timezone on Windows systems.
 """
-from __future__ import absolute_import, print_function, unicode_literals
-
-# Import Python libs
 import logging
 from datetime import datetime
 
-# Import Salt libs
 from salt.exceptions import CommandExecutionError
 
-# Import 3rd party libs
 try:
     import pytz
 
@@ -25,7 +19,7 @@ log = logging.getLogger(__name__)
 __virtualname__ = "timezone"
 
 
-class TzMapper(object):
+class TzMapper:
     def __init__(self, unix_to_win):
         self.win_to_unix = {k.lower(): v for k, v in unix_to_win.items()}
         self.unix_to_win = {v.lower(): k for k, v in unix_to_win.items()}
@@ -209,24 +203,23 @@ def get_zone():
     Returns:
         str: Timezone in unix format
 
+    Raises:
+        CommandExecutionError: If timezone could not be gathered
+
     CLI Example:
 
     .. code-block:: bash
 
         salt '*' timezone.get_zone
     """
-    win_zone = __utils__["reg.read_value"](
-        hive="HKLM",
-        key="SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation",
-        vname="TimeZoneKeyName",
-    )["vdata"]
-    # Some data may have null characters. We only need the first portion up to
-    # the first null character. See the following:
-    # https://github.com/saltstack/salt/issues/51940
-    # https://stackoverflow.com/questions/27716746/hklm-system-currentcontrolset-control-timezoneinformation-timezonekeyname-corrup
-    if "\0" in win_zone:
-        win_zone = win_zone.split("\0")[0]
-    return mapper.get_unix(win_zone.lower(), "Unknown")
+    cmd = ["tzutil", "/g"]
+    res = __salt__["cmd.run_all"](cmd, python_shell=False)
+    if res["retcode"] or not res["stdout"]:
+        raise CommandExecutionError(
+            "tzutil encountered an error getting timezone", info=res
+        )
+    tz = res["stdout"].lower().strip("_dstoff")
+    return mapper.get_unix(tz, "Unknown")
 
 
 def get_offset():
@@ -297,14 +290,14 @@ def set_zone(timezone):
 
     else:
         # Raise error because it's neither key nor value
-        raise CommandExecutionError("Invalid timezone passed: {0}".format(timezone))
+        raise CommandExecutionError("Invalid timezone passed: {}".format(timezone))
 
     # Set the value
     cmd = ["tzutil", "/s", win_zone]
     res = __salt__["cmd.run_all"](cmd, python_shell=False)
     if res["retcode"]:
         raise CommandExecutionError(
-            "tzutil encountered an error setting " "timezone: {0}".format(timezone),
+            "tzutil encountered an error setting " "timezone: {}".format(timezone),
             info=res,
         )
     return zone_compare(timezone)
@@ -339,7 +332,7 @@ def zone_compare(timezone):
 
     else:
         # Raise error because it's neither key nor value
-        raise CommandExecutionError("Invalid timezone passed: {0}" "".format(timezone))
+        raise CommandExecutionError("Invalid timezone passed: {}" "".format(timezone))
 
     return get_zone() == mapper.get_unix(check_zone, "Unknown")
 

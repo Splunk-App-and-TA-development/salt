@@ -1,22 +1,15 @@
-# -*- coding: utf-8 -*-
 """
     :codeauthor: Jayesh Kariya <jayeshk@saltstack.com>
 """
-# Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 
+import pytest
 import salt.config
 import salt.loader
-
-# Import Salt Libs
 import salt.states.reg as reg
 import salt.utils.platform
 import salt.utils.win_reg
-from tests.support.helpers import destructiveTest
-
-# Import Salt Testing Libs
 from tests.support.mixins import LoaderModuleMockMixin
 from tests.support.mock import patch
 from tests.support.runtests import RUNTIME_VARS
@@ -45,14 +38,13 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
     def tearDown(self):
         salt.utils.win_reg.delete_key_recursive(hive=self.hive, key=self.key)
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     def test_present(self):
         """
         Test to set a registry entry.
         """
         expected = {
-            "comment": "Added {0} to {1}".format(self.vname, self.name),
-            "pchanges": {},
+            "comment": "Added {} to {}".format(self.vname, self.name),
             "changes": {
                 "reg": {
                     "Added": {
@@ -71,7 +63,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         ret = reg.present(self.name, vname=self.vname, vdata=self.vdata)
         self.assertDictEqual(ret, expected)
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     def test_present_string_dword(self):
         """
         Test to set a registry entry.
@@ -81,8 +73,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         vtype = "REG_DWORD"
         expected_vdata = 1
         expected = {
-            "comment": "Added {0} to {1}".format(vname, self.name),
-            "pchanges": {},
+            "comment": "Added {} to {}".format(vname, self.name),
             "changes": {
                 "reg": {
                     "Added": {
@@ -101,7 +92,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         ret = reg.present(self.name, vname=vname, vdata=vdata, vtype=vtype)
         self.assertDictEqual(ret, expected)
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     def test_present_string_dword_existing(self):
         """
         Test to set a registry entry.
@@ -112,8 +103,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         # Set it first
         reg.present(self.name, vname=vname, vdata=vdata, vtype=vtype)
         expected = {
-            "comment": "{0} in {1} is already present".format(vname, self.name),
-            "pchanges": {},
+            "comment": "{} in {} is already present".format(vname, self.name),
             "changes": {},
             "name": self.name,
             "result": True,
@@ -124,7 +114,6 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
     def test_present_test_true(self):
         expected = {
             "comment": "",
-            "pchanges": {},
             "changes": {
                 "reg": {
                     "Will add": {
@@ -151,13 +140,28 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         )
 
         expected = {
-            "comment": "{0} in {1} is already present".format(self.vname, self.name),
-            "pchanges": {},
+            "comment": "{} in {} is already present".format(self.vname, self.name),
             "changes": {},
             "name": self.name,
             "result": True,
         }
         ret = reg.present(self.name, vname=self.vname, vdata=self.vdata)
+        self.assertDictEqual(ret, expected)
+
+    def test_present_existing_key_only(self):
+        """
+        Test setting only a key with no value name
+        """
+        # Create the reg key for testing
+        salt.utils.win_reg.set_value(hive=self.hive, key=self.key)
+
+        expected = {
+            "comment": "(Default) in {} is already present".format(self.name),
+            "changes": {},
+            "name": self.name,
+            "result": True,
+        }
+        ret = reg.present(self.name)
         self.assertDictEqual(ret, expected)
 
     def test_present_existing_test_true(self):
@@ -167,8 +171,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         )
 
         expected = {
-            "comment": "{0} in {1} is already present".format(self.vname, self.name),
-            "pchanges": {},
+            "comment": "{} in {} is already present".format(self.vname, self.name),
             "changes": {},
             "name": self.name,
             "result": True,
@@ -177,7 +180,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
             ret = reg.present(self.name, vname=self.vname, vdata=self.vdata)
         self.assertDictEqual(ret, expected)
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     def test_absent(self):
         """
         Test to remove a registry entry.
@@ -187,7 +190,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
             hive=self.hive, key=self.key, vname=self.vname, vdata=self.vdata
         )
         expected = {
-            "comment": "Removed {0} from {1}".format(self.key, self.hive),
+            "comment": "Removed {} from {}".format(self.key, self.hive),
             "changes": {"reg": {"Removed": {"Entry": self.vname, "Key": self.name}}},
             "name": self.name,
             "result": True,
@@ -195,7 +198,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         ret = reg.absent(self.name, self.vname)
         self.assertDictEqual(ret, expected)
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     def test_absent_test_true(self):
         # Create the reg key for testing
         salt.utils.win_reg.set_value(
@@ -218,7 +221,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         Test to remove a registry entry.
         """
         expected = {
-            "comment": "{0} is already absent".format(self.name),
+            "comment": "{} is already absent".format(self.name),
             "changes": {},
             "name": self.name,
             "result": True,
@@ -231,7 +234,7 @@ class RegTestCase(TestCase, LoaderModuleMockMixin):
         Test to remove a registry entry.
         """
         expected = {
-            "comment": "{0} is already absent".format(self.name),
+            "comment": "{} is already absent".format(self.name),
             "changes": {},
             "name": self.name,
             "result": True,

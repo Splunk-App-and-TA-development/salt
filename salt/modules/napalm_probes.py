@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 NAPALM Probes
 =============
@@ -22,12 +21,8 @@ Dependencies
 .. versionadded:: 2016.11.0
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
-
-# Import python lib
 import logging
 
-# import NAPALM utils
 import salt.utils.napalm
 from salt.utils.napalm import proxy_napalm_wrap
 
@@ -228,7 +223,7 @@ def set_probes(
         }
         set_probes(probes)
 
-    CLI Example - to push cahnges on the fly (not recommended):
+    CLI Example - to push changes on the fly (not recommended):
 
     .. code-block:: bash
 

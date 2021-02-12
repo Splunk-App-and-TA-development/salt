@@ -1,27 +1,21 @@
-# -*- coding: utf-8 -*-
 """
     :codeauthor: Li Kexian <doyenli@tencent.com>
 """
 
-# Import Python Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 
-# Import Salt Libs
+import pytest
 from salt.config import cloud_providers_config
-
-# Import Salt Testing Libs
 from tests.support.case import ShellCase
-from tests.support.helpers import expensiveTest, generate_random_name
+from tests.support.helpers import random_string
 from tests.support.runtests import RUNTIME_VARS
 
 # Create the cloud instance name to be used throughout the tests
-INSTANCE_NAME = generate_random_name("CLOUD-TEST-")
+INSTANCE_NAME = random_string("CLOUD-TEST-", lowercase=False)
 PROVIDER_NAME = "tencentcloud"
 
 
-@expensiveTest
+@pytest.mark.expensive_test
 class TencentCloudTest(ShellCase):
     """
     Integration tests for the Tencent Cloud cloud provider in Salt-Cloud
@@ -31,7 +25,7 @@ class TencentCloudTest(ShellCase):
         """
         Sets up the test requirements
         """
-        super(TencentCloudTest, self).setUp()
+        super().setUp()
 
         # check if appropriate cloud provider and profile files are present
         profile_str = "tencentcloud-config"
@@ -57,7 +51,7 @@ class TencentCloudTest(ShellCase):
         if tid == "" or key == "":
             self.skipTest(
                 "An api id and key must be provided to run these tests. Check "
-                "tests/integration/files/conf/cloud.providers.d/{0}.conf".format(
+                "tests/integration/files/conf/cloud.providers.d/{}.conf".format(
                     PROVIDER_NAME
                 )
             )
@@ -73,12 +67,12 @@ class TencentCloudTest(ShellCase):
                 [
                     i.strip()
                     for i in self.run_cloud(
-                        "-p tencentcloud-test {0}".format(INSTANCE_NAME), timeout=500
+                        "-p tencentcloud-test {}".format(INSTANCE_NAME), timeout=500
                     )
                 ],
             )
         except AssertionError:
-            self.run_cloud("-d {0} --assume-yes".format(INSTANCE_NAME), timeout=500)
+            self.run_cloud("-d {} --assume-yes".format(INSTANCE_NAME), timeout=500)
             raise
 
         # delete the instance
@@ -87,7 +81,7 @@ class TencentCloudTest(ShellCase):
             [
                 i.strip()
                 for i in self.run_cloud(
-                    "-d {0} --assume-yes".format(INSTANCE_NAME), timeout=500
+                    "-d {} --assume-yes".format(INSTANCE_NAME), timeout=500
                 )
             ],
         )
@@ -97,8 +91,8 @@ class TencentCloudTest(ShellCase):
         Clean up after tests
         """
         query = self.run_cloud("--query")
-        ret_str = "        {0}:".format(INSTANCE_NAME)
+        ret_str = "        {}:".format(INSTANCE_NAME)
 
         # if test instance is still present, delete it
         if ret_str in query:
-            self.run_cloud("-d {0} --assume-yes".format(INSTANCE_NAME), timeout=500)
+            self.run_cloud("-d {} --assume-yes".format(INSTANCE_NAME), timeout=500)

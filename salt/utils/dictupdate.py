@@ -1,32 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 Alex Martelli's soulution for recursive dict update from
 http://stackoverflow.com/a/3233356
 """
 
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
-# Import 3rd-party libs
 import copy
 import logging
+from collections.abc import Mapping
 
-# Import salt libs
-import salt.ext.six as six
 import salt.utils.data
 from salt.defaults import DEFAULT_TARGET_DELIM
 from salt.exceptions import SaltInvocationError
 from salt.utils.decorators.jinja import jinja_filter
 from salt.utils.odict import OrderedDict
-
-try:
-    from collections.abc import Mapping
-except ImportError:
-    # pylint: disable=no-name-in-module
-    from collections import Mapping
-
-    # pylint: enable=no-name-in-module
-
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +71,7 @@ def update(dest, upd, recursive_update=True, merge_lists=False):
 
 def merge_list(obj_a, obj_b):
     ret = {}
-    for key, val in six.iteritems(obj_a):
+    for key, val in obj_a.items():
         if key in obj_b:
             ret[key] = [val, obj_b[key]]
         else:

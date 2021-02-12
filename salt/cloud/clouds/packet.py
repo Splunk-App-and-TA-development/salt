@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Packet Cloud Module Using Packet's Python API Client
-===========================================
+====================================================
 
 The Packet cloud module is used to control access to the Packet VPS system.
 
@@ -13,17 +12,18 @@ The Packet profile requires ``size``, ``image``, ``location``,  ``project_id``
 
 Optional profile parameters:
 
- - ``storage_size`` -  min value is 10, defines Gigabytes of storage that will be attached to device.
- - ``storage_tier`` - storage_1 - Standard Plan, storage_2 - Performance Plan
- - ``snapshot_count`` - int
- - ``snapshot_frequency`` - string - possible values:
-    - 1min
-    - 15min
-    - 1hour
-    - 1day
-    - 1week
-    - 1month
-    - 1year
+- ``storage_size`` -  min value is 10, defines Gigabytes of storage that will be attached to device.
+- ``storage_tier`` - storage_1 - Standard Plan, storage_2 - Performance Plan
+- ``snapshot_count`` - int
+- ``snapshot_frequency`` - string - possible values:
+
+  - 1min
+  - 15min
+  - 1hour
+  - 1day
+  - 1week
+  - 1month
+  - 1year
 
 This driver requires Packet's client library: https://pypi.python.org/pypi/packet-python
 
@@ -48,24 +48,16 @@ This driver requires Packet's client library: https://pypi.python.org/pypi/packe
         storage_snapshot_frequency: 15min
 """
 
-# Import Python Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 import pprint
 import time
 
-# Import Salt Libs
 import salt.config as config
-
-# Import Salt-Cloud Libs
 import salt.utils.cloud
 from salt.cloud.libcloudfuncs import get_image, get_size, script, show_instance
 from salt.exceptions import SaltCloudException, SaltCloudSystemExit
-from salt.ext.six.moves import range
 from salt.utils.functools import namespaced_function
 
-# Import 3rd-party libs
 try:
     import packet
 
@@ -341,7 +333,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "starting create",
-        "salt/cloud/{0}/creating".format(name),
+        "salt/cloud/{}/creating".format(name),
         args=__utils__["cloud.filter_event"](
             "creating", vm_, ["name", "profile", "provider", "driver"]
         ),
@@ -356,7 +348,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "requesting instance",
-        "salt/cloud/{0}/requesting".format(vm_["name"]),
+        "salt/cloud/{}/requesting".format(vm_["name"]),
         args=__utils__["cloud.filter_event"](
             "requesting", vm_, ["name", "profile", "provider", "driver"]
         ),
@@ -414,7 +406,7 @@ def create(vm_):
 
         volume = manager.create_volume(
             vm_["project_id"],
-            "{0}_storage".format(name),
+            "{}_storage".format(name),
             vm_.get("storage_tier"),
             vm_.get("storage_size"),
             vm_.get("location"),
@@ -443,7 +435,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "created instance",
-        "salt/cloud/{0}/created".format(name),
+        "salt/cloud/{}/created".format(name),
         args=__utils__["cloud.filter_event"](
             "created", vm_, ["name", "profile", "provider", "driver"]
         ),
@@ -536,7 +528,9 @@ def list_nodes(call=None):
     """
     Returns a list of devices, keeping only a brief listing.
     CLI Example:
+
     .. code-block:: bash
+
         salt-cloud -Q
         salt-cloud --query
         salt-cloud -f list_nodes packet-provider
@@ -577,7 +571,7 @@ def destroy(name, call=None):
     __utils__["cloud.fire_event"](
         "event",
         "destroying instance",
-        "salt/cloud/{0}/destroying".format(name),
+        "salt/cloud/{}/destroying".format(name),
         args={"name": name},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
@@ -603,7 +597,7 @@ def destroy(name, call=None):
     __utils__["cloud.fire_event"](
         "event",
         "destroyed instance",
-        "salt/cloud/{0}/destroyed".format(name),
+        "salt/cloud/{}/destroyed".format(name),
         args={"name": name},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],

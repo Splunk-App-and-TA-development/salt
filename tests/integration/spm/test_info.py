@@ -1,18 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Tests for the spm info utility
 """
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import shutil
 
-# Import Salt Testing libs
+import pytest
 from tests.support.case import SPMCase
-from tests.support.helpers import destructiveTest
 
 
-@destructiveTest
+@pytest.mark.windows_whitelisted
+@pytest.mark.destructive_test
 class SPMInfoTest(SPMCase):
     """
     Validate the spm info command
@@ -22,6 +19,7 @@ class SPMInfoTest(SPMCase):
         self.config = self._spm_config()
         self._spm_build_files(self.config)
 
+    @pytest.mark.slow_test
     def test_spm_info(self):
         """
         test spm build

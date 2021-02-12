@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Send events based on a script's stdout
 
@@ -20,20 +19,15 @@ Script engine configs:
 
 """
 
-from __future__ import absolute_import, print_function
-
 import logging
 import shlex
 import subprocess
 import time
 
 import salt.loader
-
-# import salt libs
 import salt.utils.event
 import salt.utils.process
 from salt.exceptions import CommandExecutionError
-from salt.ext import six
 
 log = logging.getLogger(__name__)
 
@@ -42,8 +36,7 @@ def _read_stdout(proc):
     """
     Generator that returns stdout
     """
-    for line in iter(proc.stdout.readline, ""):
-        yield line
+    yield from iter(proc.stdout.readline, "")
 
 
 def _get_serializer(output):
@@ -66,7 +59,7 @@ def start(cmd, output="json", interval=1):
 
     The script engine will scrap stdout of the
     given script and generate an event based on the
-    presence of the 'tag' key and it's value.
+    presence of the 'tag' key and its value.
 
     If there is a data obj available, that will also
     be fired along with the tag.
@@ -75,21 +68,23 @@ def start(cmd, output="json", interval=1):
 
         Given the following json output from a script:
 
-            { "tag" : "lots/of/tacos",
-              "data" : { "toppings" : "cilantro" }
-            }
+            .. code-block:: json
+
+                { "tag" : "lots/of/tacos",
+                "data" : { "toppings" : "cilantro" }
+                }
 
         This will fire the event 'lots/of/tacos'
         on the event bus with the data obj as is.
 
     :param cmd: The command to execute
     :param output: How to deserialize stdout of the script
-    :param interval: How often to execute the script.
+    :param interval: How often to execute the script
     """
     try:
         cmd = shlex.split(cmd)
     except AttributeError:
-        cmd = shlex.split(six.text_type(cmd))
+        cmd = shlex.split(str(cmd))
     log.debug("script engine using command %s", cmd)
 
     serializer = _get_serializer(output)

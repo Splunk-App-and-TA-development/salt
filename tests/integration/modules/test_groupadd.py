@@ -1,30 +1,19 @@
-# -*- coding: utf-8 -*-
-
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
-import random
-import string
-
+import pytest
 import salt.utils.files
 import salt.utils.platform
 import salt.utils.stringutils
-
-# Import Salt libs
-from salt.ext import six
-from salt.ext.six.moves import range
-
-# Import Salt Testing libs
 from tests.support.case import ModuleCase
-from tests.support.helpers import destructiveTest, skip_if_not_root
+from tests.support.helpers import random_string, runs_on
 from tests.support.unit import skipIf
 
 if not salt.utils.platform.is_windows():
     import grp
 
 
-@skip_if_not_root
-@destructiveTest
+@pytest.mark.skip_if_not_root
+@pytest.mark.destructive_test
+@pytest.mark.windows_whitelisted
+@runs_on(kernel=("Linux", "Windows"))
 class GroupModuleTest(ModuleCase):
     """
     Validate the linux group system module
@@ -34,19 +23,18 @@ class GroupModuleTest(ModuleCase):
         """
         Get current settings
         """
-        super(GroupModuleTest, self).setUp()
-        self._user = self.__random_string()
-        self._user1 = self.__random_string()
-        self._no_user = self.__random_string()
-        self._group = self.__random_string()
-        self._no_group = self.__random_string()
-        self.os_grain = self.run_function("grains.item", ["kernel"])
-        self._gid = 64989 if "Windows" not in self.os_grain["kernel"] else None
-        self._new_gid = 64998 if "Windows" not in self.os_grain["kernel"] else None
-        if self.os_grain["kernel"] not in ("Linux", "Windows"):
-            self.skipTest(
-                "Test not applicable to '{kernel}' kernel".format(**self.os_grain)
-            )
+        super().setUp()
+        self._user = random_string("tg-", uppercase=False)
+        self._user1 = random_string("tg-", uppercase=False)
+        self._no_user = random_string("tg-", uppercase=False)
+        self._group = random_string("tg-", uppercase=False)
+        self._no_group = random_string("tg-", uppercase=False)
+        _gid = _new_gid = None
+        if not salt.utils.platform.is_windows():
+            _gid = 64989
+            _new_gid = 64998
+        self._gid = _gid
+        self._new_gid = _new_gid
 
     def tearDown(self):
         """
@@ -55,14 +43,6 @@ class GroupModuleTest(ModuleCase):
         self.run_function("user.delete", [self._user])
         self.run_function("user.delete", [self._user1])
         self.run_function("group.delete", [self._group])
-
-    def __random_string(self, size=6):
-        """
-        Generates a random names
-        """
-        return "tg-" + "".join(
-            random.choice(string.ascii_lowercase + string.digits) for x in range(size)
-        )
 
     def __get_system_group_gid_range(self):
         """
@@ -105,7 +85,8 @@ class GroupModuleTest(ModuleCase):
             if gid not in busy_gids:
                 return gid
 
-    @destructiveTest
+    @pytest.mark.destructive_test
+    @pytest.mark.slow_test
     def test_add(self):
         """
         Test the add group function
@@ -118,8 +99,9 @@ class GroupModuleTest(ModuleCase):
         # try adding the group again
         self.assertFalse(self.run_function("group.add", [self._group], gid=self._gid))
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     @skipIf(salt.utils.platform.is_windows(), "Skip on Windows")
+    @pytest.mark.slow_test
     def test_add_system_group(self):
         """
         Test the add group function with system=True
@@ -135,8 +117,9 @@ class GroupModuleTest(ModuleCase):
         # try adding the group again
         self.assertFalse(self.run_function("group.add", [self._group]))
 
-    @destructiveTest
+    @pytest.mark.destructive_test
     @skipIf(salt.utils.platform.is_windows(), "Skip on Windows")
+    @pytest.mark.slow_test
     def test_add_system_group_gid(self):
         """
         Test the add group function with system=True and a specific gid
@@ -152,7 +135,8 @@ class GroupModuleTest(ModuleCase):
         # try adding the group again
         self.assertFalse(self.run_function("group.add", [self._group, gid]))
 
-    @destructiveTest
+    @pytest.mark.destructive_test
+    @pytest.mark.slow_test
     def test_delete(self):
         """
         Test the delete group function
@@ -165,6 +149,7 @@ class GroupModuleTest(ModuleCase):
         # group does not exist
         self.assertFalse(self.run_function("group.delete", [self._no_group]))
 
+    @pytest.mark.slow_test
     def test_info(self):
         """
         Test the info group function
@@ -179,6 +164,7 @@ class GroupModuleTest(ModuleCase):
         self.assertIn(self._user, str(group_info["members"]))
 
     @skipIf(salt.utils.platform.is_windows(), "gid test skipped on windows")
+    @pytest.mark.slow_test
     def test_chgid(self):
         """
         Test the change gid function
@@ -188,6 +174,7 @@ class GroupModuleTest(ModuleCase):
         group_info = self.run_function("group.info", [self._group])
         self.assertEqual(group_info["gid"], self._new_gid)
 
+    @pytest.mark.slow_test
     def test_adduser(self):
         """
         Test the add user to group function
@@ -210,6 +197,7 @@ class GroupModuleTest(ModuleCase):
             self.run_function("group.adduser", [self._no_group, self._no_user])
         )
 
+    @pytest.mark.slow_test
     def test_deluser(self):
         """
         Test the delete user from group function
@@ -221,6 +209,7 @@ class GroupModuleTest(ModuleCase):
         group_info = self.run_function("group.info", [self._group])
         self.assertNotIn(self._user, str(group_info["members"]))
 
+    @pytest.mark.slow_test
     def test_members(self):
         """
         Test the members function
@@ -228,13 +217,14 @@ class GroupModuleTest(ModuleCase):
         self.run_function("group.add", [self._group], gid=self._gid)
         self.run_function("user.add", [self._user])
         self.run_function("user.add", [self._user1])
-        m = "{0},{1}".format(self._user, self._user1)
+        m = "{},{}".format(self._user, self._user1)
         ret = self.run_function("group.members", [self._group, m])
         self.assertTrue(ret)
         group_info = self.run_function("group.info", [self._group])
         self.assertIn(self._user, str(group_info["members"]))
         self.assertIn(self._user1, str(group_info["members"]))
 
+    @pytest.mark.slow_test
     def test_getent(self):
         """
         Test the getent function
@@ -243,7 +233,7 @@ class GroupModuleTest(ModuleCase):
         self.run_function("user.add", [self._user])
         self.run_function("group.adduser", [self._group, self._user])
         ginfo = self.run_function("user.getent")
-        self.assertIn(self._group, six.text_type(ginfo))
-        self.assertIn(self._user, six.text_type(ginfo))
-        self.assertNotIn(self._no_group, six.text_type(ginfo))
-        self.assertNotIn(self._no_user, six.text_type(ginfo))
+        self.assertIn(self._group, str(ginfo))
+        self.assertIn(self._user, str(ginfo))
+        self.assertNotIn(self._no_group, str(ginfo))
+        self.assertNotIn(self._no_user, str(ginfo))

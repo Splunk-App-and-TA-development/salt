@@ -1,17 +1,9 @@
-# -*- coding: utf-8 -*-
-
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
+import pytest
 import salt.utils.platform
-
-# Import 3rd-party libs
-from salt.ext import six
-
-# Import Salt Testing libs
 from tests.support.case import ModuleCase
 
 
+@pytest.mark.windows_whitelisted
 class StdTest(ModuleCase):
     """
     Test standard client calls
@@ -20,6 +12,7 @@ class StdTest(ModuleCase):
     def setUp(self):
         self.TIMEOUT = 600 if salt.utils.platform.is_windows() else 10
 
+    @pytest.mark.slow_test
     def test_cli(self):
         """
         Test cli function
@@ -32,6 +25,7 @@ class StdTest(ModuleCase):
             self.assertEqual(data["args"], ["foo", "bar", "baz"])
             self.assertEqual(data["kwargs"]["qux"], "quux")
 
+    @pytest.mark.slow_test
     def test_iter(self):
         """
         test cmd_iter
@@ -44,6 +38,7 @@ class StdTest(ModuleCase):
             self.assertEqual(data["args"], ["foo", "bar", "baz"])
             self.assertEqual(data["kwargs"]["qux"], "quux")
 
+    @pytest.mark.slow_test
     def test_iter_no_block(self):
         """
         test cmd_iter_no_block
@@ -58,6 +53,7 @@ class StdTest(ModuleCase):
             self.assertEqual(data["args"], ["foo", "bar", "baz"])
             self.assertEqual(data["kwargs"]["qux"], "quux")
 
+    @pytest.mark.slow_test
     def test_full_returns(self):
         """
         test cmd_iter
@@ -73,6 +69,7 @@ class StdTest(ModuleCase):
         self.assertEqual(data["args"], ["foo", "bar", "baz"])
         self.assertEqual(data["kwargs"]["qux"], "quux")
 
+    @pytest.mark.slow_test
     def test_kwarg_type(self):
         """
         Test that kwargs end up on the client as the same type
@@ -86,11 +83,12 @@ class StdTest(ModuleCase):
             timeout=self.TIMEOUT,
         )
         data = ret["minion"]["ret"]
-        self.assertIn(six.text_type.__name__, data["args"][0])
+        self.assertIn(str.__name__, data["args"][0])
         self.assertIn("int", data["args"][1])
         self.assertIn("dict", data["kwargs"]["outer"])
-        self.assertIn(six.text_type.__name__, data["kwargs"]["inner"])
+        self.assertIn(str.__name__, data["kwargs"]["inner"])
 
+    @pytest.mark.slow_test
     def test_full_return_kwarg(self):
         ret = self.client.cmd(
             "minion", "test.ping", full_return=True, timeout=self.TIMEOUT,
@@ -98,6 +96,7 @@ class StdTest(ModuleCase):
         for mid, data in ret.items():
             self.assertIn("retcode", data)
 
+    @pytest.mark.slow_test
     def test_cmd_arg_kwarg_parsing(self):
         ret = self.client.cmd(
             "minion",

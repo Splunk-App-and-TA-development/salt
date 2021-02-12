@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Provides the service module for systemd
 
@@ -9,9 +8,12 @@ Provides the service module for systemd
     minion, and it is using a different module (or gives an error similar to
     *'service.start' is not available*), see :ref:`here
     <module-provider-override>`.
+
+.. important::
+    This is an implementation of virtual 'service' module. As such, you must
+    call it under the name 'service' and NOT 'systemd'. You can see that also
+    in the examples below.
 """
-# Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import errno
 import fnmatch
@@ -20,18 +22,13 @@ import logging
 import os
 import re
 import shlex
-import time
 
-# Import Salt libs
 import salt.utils.files
 import salt.utils.itertools
 import salt.utils.path
 import salt.utils.stringutils
 import salt.utils.systemd
 from salt.exceptions import CommandExecutionError
-
-# Import 3rd-party libs
-from salt.ext import six
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +63,7 @@ def __virtual__():
     """
     Only work on systems that have been booted with systemd
     """
-    if __grains__["kernel"] == "Linux" and salt.utils.systemd.booted(__context__):
+    if __grains__.get("kernel") == "Linux" and salt.utils.systemd.booted(__context__):
         return __virtualname__
     return (
         False,
@@ -90,8 +87,8 @@ def _canonical_unit_name(name):
     Build a canonical unit name treating unit names without one
     of the valid suffixes as a service.
     """
-    if not isinstance(name, six.string_types):
-        name = six.text_type(name)
+    if not isinstance(name, str):
+        name = str(name)
     if any(name.endswith(suffix) for suffix in VALID_UNIT_TYPES):
         return name
     return "%s.service" % name
@@ -133,7 +130,7 @@ def _check_for_unit_changes(name):
     Check for modified/updated unit files, and run a daemon-reload if any are
     found.
     """
-    contextkey = "systemd._check_for_unit_changes.{0}".format(name)
+    contextkey = "systemd._check_for_unit_changes.{}".format(name)
     if contextkey not in __context__:
         if _untracked_custom_unit_found(name) or _unit_file_changed(name):
             systemctl_reload()
@@ -194,11 +191,8 @@ def _default_runlevel():
         pass
 
     # The default runlevel can also be set via the kernel command-line.
-    # Kinky.
     try:
-        valid_strings = set(
-            ("0", "1", "2", "3", "4", "5", "6", "s", "S", "-s", "single")
-        )
+        valid_strings = {"0", "1", "2", "3", "4", "5", "6", "s", "S", "-s", "single"}
         with salt.utils.files.fopen("/proc/cmdline") as fp_:
             for line in fp_:
                 line = salt.utils.stringutils.to_unicode(line)
@@ -288,7 +282,7 @@ def _get_service_exec():
                 break
         else:
             raise CommandExecutionError(
-                "Unable to find sysv service manager (tried {0})".format(
+                "Unable to find sysv service manager (tried {})".format(
                     ", ".join(executables)
                 )
             )
@@ -342,7 +336,7 @@ def _systemctl_cmd(action, name=None, systemd_scope=False, no_block=False, root=
         ret.append("--no-block")
     if root:
         ret.extend(["--root", root])
-    if isinstance(action, six.string_types):
+    if isinstance(action, str):
         action = shlex.split(action)
     ret.extend(action)
     if name is not None:
@@ -493,7 +487,8 @@ def get_enabled(root=None):
         except ValueError:
             continue
         else:
-            if unit_state != "enabled":
+            # Arch Linux adds a third column, which we want to ignore
+            if unit_state.split()[0] != "enabled":
                 continue
         try:
             unit_name, unit_type = fullname.rsplit(".", 1)
@@ -503,7 +498,7 @@ def get_enabled(root=None):
             ret.add(unit_name if unit_type == "service" else fullname)
 
     # Add in any sysvinit services that are enabled
-    ret.update(set([x for x in _get_sysv_services(root) if _sysv_enabled(x, root)]))
+    ret.update({x for x in _get_sysv_services(root) if _sysv_enabled(x, root)})
     return sorted(ret)
 
 
@@ -534,7 +529,8 @@ def get_disabled(root=None):
         except ValueError:
             continue
         else:
-            if unit_state != "disabled":
+            # Arch Linux adds a third column, which we want to ignore
+            if unit_state.split()[0] != "disabled":
                 continue
         try:
             unit_name, unit_type = fullname.rsplit(".", 1)
@@ -544,7 +540,7 @@ def get_disabled(root=None):
             ret.add(unit_name if unit_type == "service" else fullname)
 
     # Add in any sysvinit services that are disabled
-    ret.update(set([x for x in _get_sysv_services(root) if not _sysv_enabled(x, root)]))
+    ret.update({x for x in _get_sysv_services(root) if not _sysv_enabled(x, root)})
     return sorted(ret)
 
 
@@ -1079,29 +1075,22 @@ def force_reload(name, no_block=True, unmask=False, unmask_runtime=False):
 
 # The unused sig argument is required to maintain consistency with the API
 # established by Salt's service management states.
-def status(name, sig=None, wait=3):  # pylint: disable=unused-argument
+def status(name, sig=None):  # pylint: disable=unused-argument
     """
-    Check whether or not a service is active.
-    If the name contains globbing, a dict mapping service names to True/False
+    Return the status for a service via systemd.
+    If the name contains globbing, a dict mapping service name to True/False
     values is returned.
 
     .. versionchanged:: 2018.3.0
         The service name can now be a glob (e.g. ``salt*``)
 
-    name
-        The name of the service to check
+    Args:
+        name (str): The name of the service to check
+        sig (str): Not implemented
 
-    sig
-        Not implemented, but required to be accepted as it is passed by service
-        states
-
-    wait : 3
-        If the service is in the process of changing states (i.e. it is in
-        either the ``activating`` or ``deactivating`` state), wait up to this
-        amount of seconds (checking again periodically) before determining
-        whether the service is active.
-
-        .. versionadded:: 2019.2.3
+    Returns:
+        bool: True if running, False otherwise
+        dict: Maps service name to True if running, False otherwise
 
     CLI Example:
 
@@ -1109,38 +1098,25 @@ def status(name, sig=None, wait=3):  # pylint: disable=unused-argument
 
         salt '*' service.status <service name> [service signature]
     """
-
-    def _get_status(service):
-        ret = __salt__["cmd.run_all"](
-            _systemctl_cmd("is-active", service),
-            python_shell=False,
-            ignore_retcode=True,
-            redirect_stderr=True,
-        )
-        return ret["retcode"] == 0, ret["stdout"]
-
     contains_globbing = bool(re.search(r"\*|\?|\[.+\]", name))
     if contains_globbing:
         services = fnmatch.filter(get_all(), name)
     else:
         services = [name]
-    ret = {}
+    results = {}
     for service in services:
         _check_for_unit_changes(service)
-        ret[service], _message = _get_status(service)
-        if not ret[service]:
-            # Check if the service is in the process of activating/deactivating
-            start_time = time.time()
-            # match both 'activating' and 'deactivating'
-            while "activating" in _message and (time.time() - start_time <= wait):
-                time.sleep(0.5)
-                ret[service], _message = _get_status(service)
-                if ret[service]:
-                    break
-
+        results[service] = (
+            __salt__["cmd.retcode"](
+                _systemctl_cmd("is-active", service),
+                python_shell=False,
+                ignore_retcode=True,
+            )
+            == 0
+        )
     if contains_globbing:
-        return ret
-    return ret[name]
+        return results
+    return results[name]
 
 
 # **kwargs is required to maintain consistency with the API established by
@@ -1408,3 +1384,65 @@ def execs(root=None):
             continue
         ret[service] = data["ExecStart"]["path"]
     return ret
+
+
+def firstboot(
+    locale=None,
+    locale_message=None,
+    keymap=None,
+    timezone=None,
+    hostname=None,
+    machine_id=None,
+    root=None,
+):
+    """
+    .. versionadded:: TBD
+
+    Call systemd-firstboot to configure basic settings of the system
+
+    locale
+        Set primary locale (LANG=)
+
+    locale_message
+        Set message locale (LC_MESSAGES=)
+
+    keymap
+        Set keymap
+
+    timezone
+        Set timezone
+
+    hostname
+        Set host name
+
+    machine_id
+        Set machine ID
+
+    root
+        Operate on an alternative filesystem root
+
+    CLI Example:
+
+        salt '*' service.firstboot keymap=jp locale=en_US.UTF-8
+
+    """
+    cmd = ["systemd-firstboot"]
+    parameters = [
+        ("locale", locale),
+        ("locale-message", locale_message),
+        ("keymap", keymap),
+        ("timezone", timezone),
+        ("hostname", hostname),
+        ("machine-ID", machine_id),
+        ("root", root),
+    ]
+    for parameter, value in parameters:
+        if value:
+            cmd.extend(["--{}".format(parameter), str(value)])
+
+    out = __salt__["cmd.run_all"](cmd)
+
+    if out["retcode"] != 0:
+        raise CommandExecutionError("systemd-firstboot error: {}".format(out["stderr"]))
+
+    return True

@@ -1,21 +1,10 @@
-# coding: utf-8
-
-# Import python libs
-from __future__ import absolute_import
-
 import os
+import urllib.parse
 
-# Import salt libs
+import pytest
 import salt.utils.json
 import salt.utils.stringutils
-
-# Import test support libs
 import tests.support.cherrypy_testclasses as cptc
-
-# Import 3rd-party libs
-from salt.ext.six.moves.urllib.parse import (  # pylint: disable=no-name-in-module,import-error
-    urlencode,
-)
 from tests.support.helpers import flaky
 
 
@@ -56,7 +45,7 @@ class TestLogin(cptc.BaseRestCherryPyTest):
         """
         Test logging in
         """
-        body = urlencode(self.auth_creds)
+        body = urllib.parse.urlencode(self.auth_creds)
         request, response = self.request(
             "/login",
             method="POST",
@@ -70,7 +59,7 @@ class TestLogin(cptc.BaseRestCherryPyTest):
         """
         Test logging in
         """
-        body = urlencode({"totally": "invalid_creds"})
+        body = urllib.parse.urlencode({"totally": "invalid_creds"})
         request, response = self.request(
             "/login",
             method="POST",
@@ -83,7 +72,7 @@ class TestLogin(cptc.BaseRestCherryPyTest):
         ret = self.test_good_login()
         token = ret.headers["X-Auth-Token"]
 
-        body = urlencode({})
+        body = urllib.parse.urlencode({})
         request, response = self.request(
             "/logout",
             method="POST",
@@ -109,12 +98,13 @@ class TestRun(cptc.BaseRestCherryPyTest):
         ("fun", "test.ping"),
     )
 
+    @pytest.mark.slow_test
     def test_run_good_login(self):
         """
         Test the run URL with good auth credentials
         """
         cmd = dict(self.low, **dict(self.auth_creds))
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -129,7 +119,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with bad auth credentials
         """
         cmd = dict(self.low, **{"totally": "invalid_creds"})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -144,7 +134,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with empty token
         """
         cmd = dict(self.low, **{"token": ""})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -159,7 +149,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with empty token with upercase characters
         """
         cmd = dict(self.low, **{"ToKen": ""})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -174,7 +164,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with incorrect token
         """
         cmd = dict(self.low, **{"token": "bad"})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -189,7 +179,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with path that exists in token
         """
         cmd = dict(self.low, **{"token": os.path.join("etc", "passwd")})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -204,7 +194,7 @@ class TestRun(cptc.BaseRestCherryPyTest):
         Test the run URL with path that does not exist in token
         """
         cmd = dict(self.low, **{"token": os.path.join("tmp", "doesnotexist")})
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -214,13 +204,14 @@ class TestRun(cptc.BaseRestCherryPyTest):
         )
         assert response.status == "401 Unauthorized"
 
+    @pytest.mark.slow_test
     def test_run_extra_parameters(self):
         """
         Test the run URL with good auth credentials
         """
         cmd = dict(self.low, **dict(self.auth_creds))
         cmd["id_"] = "someminionname"
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -245,7 +236,7 @@ class TestWebhookDisableAuth(cptc.BaseRestCherryPyTest):
         """
         Auth can be disabled for requests to the webhook URL
         """
-        body = urlencode({"foo": "Foo!"})
+        body = urllib.parse.urlencode({"foo": "Foo!"})
         request, response = self.request(
             "/hook",
             method="POST",
@@ -270,7 +261,7 @@ class TestArgKwarg(cptc.BaseRestCherryPyTest):
         """
         Return the token
         """
-        body = urlencode(self.auth_creds)
+        body = urllib.parse.urlencode(self.auth_creds)
         request, response = self.request(
             "/login",
             method="POST",
@@ -279,6 +270,7 @@ class TestArgKwarg(cptc.BaseRestCherryPyTest):
         )
         return response.headers["X-Auth-Token"]
 
+    @pytest.mark.slow_test
     def test_accepts_arg_kwarg_keys(self):
         """
         Ensure that (singular) arg and kwarg keys (for passing parameters)
@@ -319,7 +311,7 @@ class TestJobs(cptc.BaseRestCherryPyTest):
         """
         Return the token
         """
-        body = urlencode(self.auth_creds)
+        body = urllib.parse.urlencode(self.auth_creds)
         request, response = self.request(
             "/login",
             method="POST",
@@ -333,7 +325,7 @@ class TestJobs(cptc.BaseRestCherryPyTest):
         Helper function to add a job to the job cache
         """
         cmd = dict(self.low, **dict(self.auth_creds))
-        body = urlencode(cmd)
+        body = urllib.parse.urlencode(cmd)
 
         request, response = self.request(
             "/run",
@@ -344,6 +336,7 @@ class TestJobs(cptc.BaseRestCherryPyTest):
         self.assertEqual(response.status, "200 OK")
 
     @flaky
+    @pytest.mark.slow_test
     def test_all_jobs(self):
         """
         test query to /jobs returns job data

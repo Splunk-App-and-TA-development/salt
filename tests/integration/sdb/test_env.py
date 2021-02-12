@@ -1,21 +1,18 @@
-# -*- coding: utf-8 -*-
 """
 Test case for env sdb module
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import textwrap
 
-# Import salt libs
+import pytest
 import salt.utils.files
-
-# Import Salt Testing libs
 from tests.support.case import ModuleCase
 from tests.support.mixins import SaltReturnAssertsMixin
 from tests.support.runtests import RUNTIME_VARS
 
 
+@pytest.mark.windows_whitelisted
 class EnvTestCase(ModuleCase, SaltReturnAssertsMixin):
     def setUp(self):
         self.state_name = "test_sdb_env"
@@ -48,6 +45,7 @@ class EnvTestCase(ModuleCase, SaltReturnAssertsMixin):
     def tearDown(self):
         os.remove(self.state_file_set_var)
 
+    @pytest.mark.slow_test
     def test_env_module_sets_key(self):
         state_key = "test_|-always-changes-and-succeeds_|-foo_|-succeed_with_changes"
         ret = self.run_function("state.sls", [self.state_name])

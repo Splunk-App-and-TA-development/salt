@@ -1,17 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Support for the Amazon Simple Queue Service.
 """
 
-# Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 
-# Import salt libs
 import salt.utils.json
 import salt.utils.path
-from salt.ext import six
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +49,7 @@ def _run_aws(cmd, region, opts, user, **kwargs):
     if num:
         kwargs["max-number-of-messages"] = num
 
-    _formatted_args = ['--{0} "{1}"'.format(k, v) for k, v in six.iteritems(kwargs)]
+    _formatted_args = ['--{} "{}"'.format(k, v) for k, v in kwargs.items()]
 
     cmd = "aws sqs {cmd} {args} {region} {out}".format(
         cmd=cmd, args=" ".join(_formatted_args), region=_region(region), out=_OUTPUT
@@ -238,15 +232,14 @@ def delete_queue(name, region, opts=None, user=None):
     queues = list_queues(region, opts, user)
     url_map = _parse_queue_list(queues)
 
-    logger = logging.getLogger(__name__)
-    logger.debug("map %s", six.text_type(url_map))
+    log.debug("map %s", url_map)
     if name in url_map:
         delete = {"queue-url": url_map[name]}
 
         rtn = _run_aws("delete-queue", region=region, opts=opts, user=user, **delete)
         success = True
         err = ""
-        out = "{0} deleted".format(name)
+        out = "{} deleted".format(name)
 
     else:
         out = ""
@@ -291,5 +284,5 @@ def _parse_queue_list(list_output):
     """
     Parse the queue to get a dict of name -> URL
     """
-    queues = dict((q.split("/")[-1], q) for q in list_output["stdout"])
+    queues = {q.split("/")[-1]: q for q in list_output["stdout"]}
     return queues

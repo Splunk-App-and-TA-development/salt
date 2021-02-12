@@ -1,25 +1,17 @@
-# -*- coding: utf-8 -*-
 """
     :codeauthor: :email:`Gareth J. Greenaway <gareth@saltstack.com>`
     :codeauthor: :email:`David Murphy <dmurphy@saltstack.com>`
 """
-
-# Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import datetime
 import os
 import shutil
 import time
 
+import pytest
 import salt.modules.gpg as gpg
 import salt.utils.files
-
-# Import Salt libs
 import salt.utils.platform
-
-# Import Salt Testing Libs
-from tests.support.helpers import destructiveTest
 from tests.support.mixins import LoaderModuleMockMixin
 from tests.support.mock import MagicMock, patch
 from tests.support.runtests import RUNTIME_VARS
@@ -163,7 +155,7 @@ except ImportError:
     HAS_GPG = False
 
 
-@destructiveTest
+@pytest.mark.destructive_test
 @skipIf(not salt.utils.platform.is_linux(), "These tests can only be run on linux")
 class GpgTestCase(TestCase, LoaderModuleMockMixin):
     """
@@ -175,7 +167,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
 
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
     def setUp(self):
-        super(GpgTestCase, self).setUp()
+        super().setUp()
         self.gpghome = os.path.join(RUNTIME_VARS.TMP, "gpghome")
         if not os.path.isdir(self.gpghome):
             # left behind... Don't fail because of this!
@@ -193,7 +185,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
         if os.path.isfile(self.gpgfile_pub):
             os.remove(self.gpgfile_pub)
         shutil.rmtree(self.gpghome, ignore_errors=True)
-        super(GpgTestCase, self).tearDown()
+        super().tearDown()
 
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
     def test_list_keys(self):
@@ -326,7 +318,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
                     ret = gpg.get_key("xxxxxxxxxxxxxxxx")
                     self.assertEqual(ret, _expected_result)
 
-    @destructiveTest  # Need to run as root!?
+    @pytest.mark.destructive_test  # Need to run as root!?
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
     def test_delete_key(self):
         """
@@ -442,6 +434,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
                     self.assertEqual(ret, _expected_result)
 
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
+    @pytest.mark.slow_test
     def test_gpg_import_pub_key(self):
         config_user = MagicMock(return_value="salt")
         user_info = MagicMock(
@@ -453,6 +446,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
                 self.assertEqual(ret["res"], True)
 
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
+    @pytest.mark.slow_test
     def test_gpg_import_priv_key(self):
         config_user = MagicMock(return_value="salt")
         user_info = MagicMock(
@@ -464,6 +458,7 @@ class GpgTestCase(TestCase, LoaderModuleMockMixin):
                 self.assertEqual(ret["res"], True)
 
     @skipIf(not HAS_GPG, "GPG Module Unavailable")
+    @pytest.mark.slow_test
     def test_gpg_sign(self):
         config_user = MagicMock(return_value="salt")
         user_info = MagicMock(

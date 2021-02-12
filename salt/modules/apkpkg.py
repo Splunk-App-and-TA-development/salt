@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Support for apk
 
@@ -11,13 +10,10 @@ Support for apk
 .. versionadded: 2017.7.0
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
-# Import python libs
 import copy
 import logging
 
-# Import salt libs
 import salt.utils.data
 import salt.utils.itertools
 from salt.exceptions import CommandExecutionError
@@ -83,7 +79,7 @@ def version(*names, **kwargs):
     return __salt__["pkg_resource.version"](*names, **kwargs)
 
 
-def refresh_db():
+def refresh_db(**kwargs):
     """
     Updates the package list
 
@@ -177,7 +173,7 @@ def latest_version(*names, **kwargs):
     """
     refresh = salt.utils.data.is_true(kwargs.pop("refresh", True))
 
-    if len(names) == 0:
+    if not names:
         return ""
 
     ret = {}
@@ -409,7 +405,7 @@ def remove(
     return ret
 
 
-def upgrade(name=None, pkgs=None, refresh=True):
+def upgrade(name=None, pkgs=None, refresh=True, **kwargs):
     """
     Upgrades all packages via ``apk upgrade`` or a specific package if name or
     pkgs is specified. Name is ignored if pkgs is specified
@@ -469,7 +465,7 @@ def upgrade(name=None, pkgs=None, refresh=True):
     return ret
 
 
-def list_upgrades(refresh=True):
+def list_upgrades(refresh=True, **kwargs):
     """
     List all available package upgrades.
 
@@ -506,7 +502,7 @@ def list_upgrades(refresh=True):
     return ret
 
 
-def file_list(*packages):
+def file_list(*packages, **kwargs):
     """
     List the files that belong to a package. Not specifying any packages will
     return a list of _every_ file on the system's package database (not
@@ -523,7 +519,7 @@ def file_list(*packages):
     return file_dict(*packages)
 
 
-def file_dict(*packages):
+def file_dict(*packages, **kwargs):
     """
     List the files that belong to a package, grouped by package. Not
     specifying any packages will return a list of _every_ file on the system's
@@ -560,7 +556,7 @@ def file_dict(*packages):
     return {"errors": errors, "packages": ret}
 
 
-def owner(*paths):
+def owner(*paths, **kwargs):
     """
     Return the name of the package that owns the file. Multiple file paths can
     be passed. Like :mod:`pkg.version <salt.modules.apk.version`, if a single
@@ -592,6 +588,6 @@ def owner(*paths):
             else:
                 ret[path] = output.split("by ")[1].strip()
         else:
-            ret[path] = "Error running {0}".format(cmd)
+            ret[path] = "Error running {}".format(cmd)
 
     return ret

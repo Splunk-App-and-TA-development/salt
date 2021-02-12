@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Scaleway Cloud Module
 =====================
@@ -22,9 +21,6 @@ the cloud configuration at ``/etc/salt/cloud.providers`` or
 
 """
 
-# Import Python Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 import os
 import pprint
@@ -40,10 +36,6 @@ from salt.exceptions import (
     SaltCloudNotFound,
     SaltCloudSystemExit,
 )
-
-# Import Salt Libs
-from salt.ext import six
-from salt.ext.six.moves import range
 
 log = logging.getLogger(__name__)
 
@@ -78,12 +70,12 @@ def avail_images(call=None):
             "-f or --function, or with the --list-images option"
         )
 
-    items = query(method="images")
+    items = query(method="images", root="marketplace_root")
     ret = {}
     for image in items["images"]:
         ret[image["id"]] = {}
         for item in image:
-            ret[image["id"]][item] = six.text_type(image[item])
+            ret[image["id"]][item] = str(image[item])
 
     return ret
 
@@ -157,28 +149,28 @@ def get_image(server_):
     """ Return the image object to use.
     """
     images = avail_images()
-    server_image = six.text_type(
+    server_image = str(
         config.get_cloud_config_value("image", server_, __opts__, search_global=False)
     )
     for image in images:
         if server_image in (images[image]["name"], images[image]["id"]):
             return images[image]["id"]
     raise SaltCloudNotFound(
-        "The specified image, '{0}', could not be found.".format(server_image)
+        "The specified image, '{}', could not be found.".format(server_image)
     )
 
 
 def create_node(args):
     """ Create a node.
     """
-    node = query(method="servers", args=args, http_method="post")
+    node = query(method="servers", args=args, http_method="POST")
 
     action = query(
         method="servers",
         server_id=node["server"]["id"],
         command="action",
         args={"action": "poweron"},
-        http_method="post",
+        http_method="POST",
     )
     return node
 
@@ -206,7 +198,7 @@ def create(server_):
     __utils__["cloud.fire_event"](
         "event",
         "starting create",
-        "salt/cloud/{0}/creating".format(server_["name"]),
+        "salt/cloud/{}/creating".format(server_["name"]),
         args=__utils__["cloud.filter_event"](
             "creating", server_, ["name", "profile", "provider", "driver"]
         ),
@@ -230,7 +222,7 @@ def create(server_):
 
     if key_filename is not None and not os.path.isfile(key_filename):
         raise SaltCloudConfigError(
-            "The defined key_filename '{0}' does not exist".format(key_filename)
+            "The defined key_filename '{}' does not exist".format(key_filename)
         )
 
     ssh_password = config.get_cloud_config_value("ssh_password", server_, __opts__)
@@ -245,7 +237,7 @@ def create(server_):
     __utils__["cloud.fire_event"](
         "event",
         "requesting instance",
-        "salt/cloud/{0}/requesting".format(server_["name"]),
+        "salt/cloud/{}/requesting".format(server_["name"]),
         args={
             "kwargs": __utils__["cloud.filter_event"](
                 "requesting", kwargs, list(kwargs)
@@ -295,7 +287,7 @@ def create(server_):
         except SaltCloudSystemExit:
             pass
         finally:
-            raise SaltCloudSystemExit(six.text_type(exc))
+            raise SaltCloudSystemExit(str(exc))
 
     server_["ssh_host"] = data["public_ip"]["address"]
     server_["ssh_password"] = ssh_password
@@ -314,7 +306,7 @@ def create(server_):
     __utils__["cloud.fire_event"](
         "event",
         "created instance",
-        "salt/cloud/{0}/created".format(server_["name"]),
+        "salt/cloud/{}/created".format(server_["name"]),
         args=__utils__["cloud.filter_event"](
             "created", server_, ["name", "profile", "provider", "driver"]
         ),
@@ -325,23 +317,34 @@ def create(server_):
     return ret
 
 
-def query(method="servers", server_id=None, command=None, args=None, http_method="get"):
+def query(
+    method="servers",
+    server_id=None,
+    command=None,
+    args=None,
+    http_method="GET",
+    root="api_root",
+):
     """ Make a call to the Scaleway API.
     """
-    base_path = six.text_type(
+
+    if root == "api_root":
+        default_url = "https://cp-par1.scaleway.com"
+    else:
+        default_url = "https://api-marketplace.scaleway.com"
+
+    vm_ = get_configured_provider()
+
+    base_path = str(
         config.get_cloud_config_value(
-            "api_root",
-            get_configured_provider(),
-            __opts__,
-            search_global=False,
-            default="https://api.cloud.online.net",
+            root, vm_, __opts__, search_global=False, default=default_url,
         )
     )
 
-    path = "{0}/{1}/".format(base_path, method)
+    path = "{}/{}/".format(base_path, method)
 
     if server_id:
-        path += "{0}/".format(server_id)
+        path += "{}/".format(server_id)
 
     if command:
         path += command
@@ -349,9 +352,7 @@ def query(method="servers", server_id=None, command=None, args=None, http_method
     if not isinstance(args, dict):
         args = {}
 
-    token = config.get_cloud_config_value(
-        "token", get_configured_provider(), __opts__, search_global=False
-    )
+    token = config.get_cloud_config_value("token", vm_, __opts__, search_global=False)
 
     data = salt.utils.json.dumps(args)
 
@@ -367,17 +368,15 @@ def query(method="servers", server_id=None, command=None, args=None, http_method
     )
     if request.status_code > 299:
         raise SaltCloudSystemExit(
-            "An error occurred while querying Scaleway. HTTP Code: {0}  "
-            "Error: '{1}'".format(request.status_code, request.text)
+            "An error occurred while querying Scaleway. HTTP Code: {}  "
+            "Error: '{}'".format(request.status_code, request.text)
         )
 
-    log.debug(request.url)
-
     # success without data
-    if request.status_code == 204:
+    if request["status"] == 204:
         return True
 
-    return request.json()
+    return salt.utils.json.loads(request["body"])
 
 
 def script(server_):
@@ -436,7 +435,7 @@ def destroy(name, call=None):
     __utils__["cloud.fire_event"](
         "event",
         "destroying instance",
-        "salt/cloud/{0}/destroying".format(name),
+        "salt/cloud/{}/destroying".format(name),
         args={"name": name},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
@@ -448,13 +447,13 @@ def destroy(name, call=None):
         server_id=data["id"],
         command="action",
         args={"action": "terminate"},
-        http_method="post",
+        http_method="POST",
     )
 
     __utils__["cloud.fire_event"](
         "event",
         "destroyed instance",
-        "salt/cloud/{0}/destroyed".format(name),
+        "salt/cloud/{}/destroyed".format(name),
         args={"name": name},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],

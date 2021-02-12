@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Management of PostgreSQL clusters
 =================================
@@ -13,7 +12,6 @@ Clusters can be set as either absent or present
           - name: 'main'
           - version: '9.3'
 """
-from __future__ import absolute_import, print_function, unicode_literals
 
 
 def __virtual__():
@@ -28,7 +26,17 @@ def __virtual__():
     return True
 
 
-def present(version, name, port=None, encoding=None, locale=None, datadir=None):
+def present(
+    version,
+    name,
+    port=None,
+    encoding=None,
+    locale=None,
+    datadir=None,
+    allow_group_access=None,
+    data_checksums=None,
+    wal_segsize=None,
+):
     """
     Ensure that the named cluster is present with the specified properties.
     For more information about all of these options see man pg_createcluster(1)
@@ -51,15 +59,24 @@ def present(version, name, port=None, encoding=None, locale=None, datadir=None):
     datadir
         Where the cluster is stored
 
+    allow_group_access
+        Allows users in the same group as the cluster owner to read all cluster files created by initdb
+
+    data_checksums
+        Use checksums on data pages
+
+    wal_segsize
+        Set the WAL segment size, in megabytes
+
         .. versionadded:: 2015.XX
     """
-    msg = "Cluster {0}/{1} is already present".format(version, name)
+    msg = "Cluster {}/{} is already present".format(version, name)
     ret = {"name": name, "changes": {}, "result": True, "comment": msg}
 
     if __salt__["postgres.cluster_exists"](version, name):
         # check cluster config is correct
         infos = __salt__["postgres.cluster_list"](verbose=True)
-        info = infos["{0}/{1}".format(version, name)]
+        info = infos["{}/{}".format(version, name)]
         # TODO: check locale en encoding configs also
         if any(
             (
@@ -68,7 +85,7 @@ def present(version, name, port=None, encoding=None, locale=None, datadir=None):
             )
         ):
             ret["comment"] = (
-                "Cluster {0}/{1} has wrong parameters "
+                "Cluster {}/{} has wrong parameters "
                 "which couldn't be changed on fly.".format(version, name)
             )
             ret["result"] = False
@@ -87,11 +104,14 @@ def present(version, name, port=None, encoding=None, locale=None, datadir=None):
         locale=locale,
         encoding=encoding,
         datadir=datadir,
+        allow_group_access=allow_group_access,
+        data_checksums=data_checksums,
+        wal_segsize=wal_segsize,
     )
     if cluster:
         msg = "The cluster {0}/{1} has been created"
         ret["comment"] = msg.format(version, name)
-        ret["changes"]["{0}/{1}".format(version, name)] = "Present"
+        ret["changes"]["{}/{}".format(version, name)] = "Present"
     else:
         msg = "Failed to create cluster {0}/{1}"
         ret["comment"] = msg.format(version, name)
@@ -127,8 +147,7 @@ def absent(version, name):
             return ret
 
     # fallback
-    ret["comment"] = (
-        "Cluster {0}/{1} is not present, so it cannot "
-        "be removed".format(version, name)
+    ret["comment"] = "Cluster {}/{} is not present, so it cannot " "be removed".format(
+        version, name
     )
     return ret

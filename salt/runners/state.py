@@ -1,20 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Execute orchestration functions
 """
-# Import pytohn libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import logging
 
-# Import salt libs
 import salt.loader
 import salt.utils.event
 import salt.utils.functools
 import salt.utils.jid
 from salt.exceptions import SaltInvocationError
 
-LOGGER = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 def pause(jid, state_id=None, duration=None):
@@ -210,7 +206,7 @@ def orchestrate_show_sls(
     Display the state data from a specific sls, or list of sls files, after
     being render using the master minion.
 
-    Note, the master minion adds a "_master" suffix to it's minion id.
+    Note, the master minion adds a "_master" suffix to its minion id.
 
     .. seealso:: The state.show_sls module function
 

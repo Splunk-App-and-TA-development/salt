@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 XenServer Cloud Driver
 ======================
@@ -59,20 +57,13 @@ Example profile configuration:
 
 """
 
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 import time
 from datetime import datetime
 
-# Import salt libs
 import salt.config as config
-
-# Import Salt-Cloud Libs
 import salt.utils.cloud
 from salt.exceptions import SaltCloudException, SaltCloudSystemExit
-from salt.ext import six
 
 # Get logging started
 log = logging.getLogger(__name__)
@@ -154,7 +145,7 @@ def _get_session():
         )
         session.xenapi.login_with_password(user, password, api_version, originator)
     except XenAPI.Failure as ex:
-        pool_master_addr = six.text_type(ex.__dict__["details"][1])
+        pool_master_addr = str(ex.__dict__["details"][1])
         slash_parts = url.split("/")
         new_url = "/".join(slash_parts[:2]) + "/" + pool_master_addr
         session = XenAPI.Session(new_url)
@@ -189,7 +180,7 @@ def list_nodes():
             except Exception:  # pylint: disable=broad-except
                 base_template_name = None
                 log.debug(
-                    "VM %s, doesnt have base_template_name attribute",
+                    "VM %s, does not have base_template_name attribute",
                     record["name_label"],
                 )
             ret[record["name_label"]] = {
@@ -308,7 +299,7 @@ def list_nodes_full(session=None):
             except Exception:  # pylint: disable=broad-except
                 base_template_name = None
                 log.debug(
-                    "VM %s, doesnt have base_template_name attribute",
+                    "VM %s, does not have base_template_name attribute",
                     record["name_label"],
                 )
             vm_cfg = session.xenapi.VM.get_record(vm)
@@ -472,7 +463,8 @@ def show_instance(name, session=None, call=None):
         except Exception:  # pylint: disable=broad-except
             base_template_name = None
             log.debug(
-                "VM %s, doesnt have base_template_name attribute", record["name_label"]
+                "VM %s, does not have base_template_name attribute",
+                record["name_label"],
             )
         ret = {
             "id": record["uuid"],
@@ -546,7 +538,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "starting create",
-        "salt/cloud/{0}/creating".format(name),
+        "salt/cloud/{}/creating".format(name),
         args={"name": name, "profile": vm_["profile"], "provider": vm_["driver"]},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
@@ -576,7 +568,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "requesting instance",
-        "salt/cloud/{0}/requesting".format(name),
+        "salt/cloud/{}/requesting".format(name),
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
     )
@@ -619,7 +611,7 @@ def create(vm_):
     __utils__["cloud.fire_event"](
         "event",
         "created instance",
-        "salt/cloud/{0}/created".format(name),
+        "salt/cloud/{}/created".format(name),
         args={"name": name, "profile": vm_["profile"], "provider": vm_["driver"]},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
@@ -977,7 +969,7 @@ def destroy(name=None, call=None):
     __utils__["cloud.fire_event"](
         "event",
         "destroying instance",
-        "salt/cloud/{0}/destroying".format(name),
+        "salt/cloud/{}/destroying".format(name),
         args={"name": name},
         sock_dir=__opts__["sock_dir"],
         transport=__opts__["transport"],
@@ -1002,7 +994,7 @@ def destroy(name=None, call=None):
         __utils__["cloud.fire_event"](
             "event",
             "destroyed instance",
-            "salt/cloud/{0}/destroyed".format(name),
+            "salt/cloud/{}/destroyed".format(name),
             args={"name": name},
             sock_dir=__opts__["sock_dir"],
             transport=__opts__["transport"],

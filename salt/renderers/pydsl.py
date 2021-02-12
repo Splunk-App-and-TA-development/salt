@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 A Python-based DSL
 
@@ -334,14 +333,11 @@ For example:
         my_mod = sys.modules['salt.loaded.ext.module.my_mod']
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
-
 import types
 
 import salt.utils.pydsl as pydsl
 import salt.utils.stringutils
 from salt.exceptions import SaltRenderError
-from salt.ext.six import exec_
 from salt.utils.pydsl import PyDslError
 
 __all__ = ["render"]
@@ -350,7 +346,7 @@ __all__ = ["render"]
 def render(template, saltenv="base", sls="", tmplpath=None, rendered_sls=None, **kws):
     sls = salt.utils.stringutils.to_str(sls)
     mod = types.ModuleType(sls)
-    # Note: mod object is transient. It's existence only lasts as long as
+    # Note: mod object is transient. Its existence only lasts as long as
     #       the lowstate data structure that the highstate in the sls file
     #       is compiled to.
 
@@ -377,7 +373,7 @@ def render(template, saltenv="base", sls="", tmplpath=None, rendered_sls=None, *
     )
 
     dsl_sls.get_render_stack().append(dsl_sls)
-    exec_(template.read(), mod.__dict__)
+    exec(template.read(), mod.__dict__)
     highstate = dsl_sls.to_highstate(mod)
     dsl_sls.get_render_stack().pop()
     return highstate

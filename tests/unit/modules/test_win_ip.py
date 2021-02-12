@@ -1,16 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     :codeauthor: Jayesh Kariya <jayeshk@saltstack.com>
 """
 
-# Import Python Libs
-from __future__ import absolute_import, print_function, unicode_literals
-
-# Import Salt Libs
+import pytest
 import salt.modules.win_ip as win_ip
 from salt.exceptions import CommandExecutionError, SaltInvocationError
-
-# Import Salt Testing Libs
 from tests.support.mixins import LoaderModuleMockMixin
 from tests.support.mock import MagicMock, call, patch
 from tests.support.unit import TestCase
@@ -197,6 +191,7 @@ class WinShadowTestCase(TestCase, LoaderModuleMockMixin):
 
     # 'set_static_ip' function tests: 1
 
+    @pytest.mark.slow_test
     def test_set_static_ip(self):
         """
         Test if it set static IP configuration on a Windows NIC.

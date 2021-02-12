@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Support for BambooHR
 
@@ -13,16 +12,11 @@ Requires a ``subdomain`` and an ``apikey`` in ``/etc/salt/minion``:
       subdomain: mycompany
 """
 
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import logging
 
-# Import salt libs
 import salt.utils.http
 import salt.utils.yaml
 from salt._compat import ElementTree as ET
-from salt.ext import six
 
 log = logging.getLogger(__name__)
 
@@ -70,15 +64,14 @@ def list_employees(order_by="id"):
     ret = {}
     status, result = _query(action="employees", command="directory")
     root = ET.fromstring(result)
-    directory = root.getchildren()
-    for cat in directory:
+    for cat in root:
         if cat.tag != "employees":
             continue
         for item in cat:
-            emp_id = item.items()[0][1]
+            emp_id = next(iter(item.values()))
             emp_ret = {"id": emp_id}
-            for details in item.getchildren():
-                emp_ret[details.items()[0][1]] = details.text
+            for details in item:
+                emp_ret[next(iter(details.values()))] = details.text
             ret[emp_ret[order_by]] = emp_ret
     return ret
 
@@ -144,11 +137,10 @@ def show_employee(emp_id, fields=None):
     status, result = _query(action="employees", command=emp_id, args={"fields": fields})
 
     root = ET.fromstring(result)
-    items = root.getchildren()
 
     ret = {"id": emp_id}
-    for item in items:
-        ret[item.items()[0][1]] = item.text
+    for item in root:
+        ret[next(iter(item.values()))] = item.text
     return ret
 
 
@@ -168,13 +160,13 @@ def update_employee(emp_id, key=None, value=None, items=None):
         if key is None or value is None:
             return {"Error": "At least one key/value pair is required"}
         items = {key: value}
-    elif isinstance(items, six.string_types):
+    elif isinstance(items, str):
         items = salt.utils.yaml.safe_load(items)
 
     xml_items = ""
     for pair in items:
-        xml_items += '<field id="{0}">{1}</field>'.format(pair, items[pair])
-    xml_items = "<employee>{0}</employee>".format(xml_items)
+        xml_items += '<field id="{}">{}</field>'.format(pair, items[pair])
+    xml_items = "<employee>{}</employee>".format(xml_items)
 
     status, result = _query(
         action="employees", command=emp_id, data=xml_items, method="POST",
@@ -206,15 +198,14 @@ def list_users(order_by="id"):
     ret = {}
     status, result = _query(action="meta", command="users")
     root = ET.fromstring(result)
-    users = root.getchildren()
-    for user in users:
+    for user in root:
         user_id = None
         user_ret = {}
         for item in user.items():
             user_ret[item[0]] = item[1]
             if item[0] == "id":
                 user_id = item[1]
-        for item in user.getchildren():
+        for item in user:
             user_ret[item.tag] = item.text
         ret[user_ret[order_by]] = user_ret
     return ret
@@ -231,8 +222,7 @@ def list_meta_fields():
     ret = {}
     status, result = _query(action="meta", command="fields")
     root = ET.fromstring(result)
-    fields = root.getchildren()
-    for field in fields:
+    for field in root:
         field_id = None
         field_ret = {"name": field.text}
         for item in field.items():
@@ -250,13 +240,13 @@ def _query(action=None, command=None, args=None, method="GET", data=None):
     The password can be any random text, so we chose Salty text.
     """
     subdomain = __opts__.get("bamboohr", {}).get("subdomain", None)
-    path = "https://api.bamboohr.com/api/gateway.php/{0}/v1/".format(subdomain)
+    path = "https://api.bamboohr.com/api/gateway.php/{}/v1/".format(subdomain)
 
     if action:
         path += action
 
     if command:
-        path += "/{0}".format(command)
+        path += "/{}".format(command)
 
     log.debug("BambooHR URL: %s", path)
 

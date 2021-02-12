@@ -1,27 +1,17 @@
-# -*- coding: utf-8 -*-
-
-# Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
-
 import os
 import shutil
 
-# Import Salt libs
+import pytest
 import salt.utils.platform
-
-# Import 3rd-party libs
-from salt.ext import six
-
-# Import Salt Testing libs
 from tests.support.case import ModuleCase
-from tests.support.helpers import destructiveTest
 from tests.support.unit import skipIf
 
 
-@destructiveTest
+@pytest.mark.windows_whitelisted
 @skipIf(salt.utils.platform.is_darwin(), "No mtab on Darwin")
 @skipIf(salt.utils.platform.is_freebsd(), "No mtab on FreeBSD")
 @skipIf(salt.utils.platform.is_windows(), "No mtab on Windows")
+@pytest.mark.destructive_test
 class DiskModuleVirtualizationTest(ModuleCase):
     """
     Test to make sure we return a clean result under Docker. Refs #8976
@@ -43,11 +33,13 @@ class DiskModuleVirtualizationTest(ModuleCase):
             shutil.move("/tmp/mtab", "/etc/mtab")
 
 
+@pytest.mark.windows_whitelisted
 class DiskModuleTest(ModuleCase):
     """
     Validate the disk module
     """
 
+    @pytest.mark.slow_test
     def test_usage(self):
         """
         disk.usage
@@ -57,7 +49,7 @@ class DiskModuleTest(ModuleCase):
         if not isinstance(ret, dict):
             return
         if salt.utils.platform.is_darwin():
-            for key, val in six.iteritems(ret):
+            for key, val in ret.items():
                 self.assertTrue("filesystem" in val)
                 self.assertTrue("512-blocks" in val)
                 self.assertTrue("used" in val)
@@ -67,7 +59,7 @@ class DiskModuleTest(ModuleCase):
                 self.assertTrue("ifree" in val)
                 self.assertTrue("%iused" in val)
         else:
-            for key, val in six.iteritems(ret):
+            for key, val in ret.items():
                 self.assertTrue("filesystem" in val)
                 self.assertTrue("1K-blocks" in val)
                 self.assertTrue("used" in val)
@@ -83,7 +75,7 @@ class DiskModuleTest(ModuleCase):
         self.assertTrue(isinstance(ret, dict))
         if not isinstance(ret, dict):
             return
-        for key, val in six.iteritems(ret):
+        for key, val in ret.items():
             self.assertTrue("inodes" in val)
             self.assertTrue("used" in val)
             self.assertTrue("free" in val)

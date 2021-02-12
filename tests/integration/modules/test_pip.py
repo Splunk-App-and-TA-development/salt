@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 tests.integration.modules.pip
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
 
-# Import python libs
-from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import pprint
@@ -14,15 +11,13 @@ import shutil
 import sys
 import tempfile
 
-# Import salt libs
+import pytest
 import salt.utils.files
 import salt.utils.path
 import salt.utils.platform
 from salt.modules.virtualenv_mod import KNOWN_BINARY_NAMES
 from tests.support.case import ModuleCase
 from tests.support.helpers import patched_environ
-
-# Import Salt Testing libs
 from tests.support.runtests import RUNTIME_VARS
 from tests.support.unit import skipIf
 
@@ -30,9 +25,10 @@ from tests.support.unit import skipIf
 @skipIf(
     salt.utils.path.which_bin(KNOWN_BINARY_NAMES) is None, "virtualenv not installed"
 )
+@pytest.mark.windows_whitelisted
 class PipModuleTest(ModuleCase):
     def setUp(self):
-        super(PipModuleTest, self).setUp()
+        super().setUp()
         self.venv_test_dir = tempfile.mkdtemp(dir=RUNTIME_VARS.TMP)
         # Remove the venv test directory
         self.addCleanup(shutil.rmtree, self.venv_test_dir, ignore_errors=True)
@@ -104,15 +100,14 @@ class PipModuleTest(ModuleCase):
         )
 
         success_for = (
-            re.findall(
-                r"({0})(?:-(?:[\d\.-]))?".format(expect_str), success.groups()[0]
-            )
+            re.findall(r"({})(?:-(?:[\d\.-]))?".format(expect_str), success.groups()[0])
             if success
             else []
         )
 
         return expect.issubset(set(success_for))
 
+    @pytest.mark.slow_test
     def test_issue_2087_missing_pip(self):
         # Let's create the testing virtualenv
         self._create_virtualenv(self.venv_dir)
@@ -139,11 +134,12 @@ class PipModuleTest(ModuleCase):
         for func in ("pip.freeze", "pip.list"):
             ret = self.run_function(func, bin_env=self.venv_dir)
             self.assertIn(
-                "Command required for '{0}' not found: "
+                "Command required for '{}' not found: "
                 "Could not find a `pip` binary".format(func),
                 ret,
             )
 
+    @pytest.mark.slow_test
     def test_requirements_as_list_of_chains__cwd_set__absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -189,6 +185,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_requirements_as_list_of_chains__cwd_not_set__absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -232,6 +229,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_requirements_as_list__absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -267,6 +265,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_requirements_as_list__non_absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -311,6 +310,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_chained_requirements__absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -344,6 +344,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_chained_requirements__non_absolute_file_path(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -384,6 +385,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_issue_4805_nested_requirements(self):
         self._create_virtualenv(self.venv_dir)
 
@@ -421,6 +423,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_pip_uninstall(self):
         # Let's create the testing virtualenv
         self._create_virtualenv(self.venv_dir)
@@ -463,6 +466,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_pip_install_upgrade(self):
         # Create the testing virtualenv
         self._create_virtualenv(self.venv_dir)
@@ -529,6 +533,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_pip_install_multiple_editables(self):
         editables = [
             "git+https://github.com/jek/blinker.git#egg=Blinker",
@@ -540,7 +545,7 @@ class PipModuleTest(ModuleCase):
         ret = self.run_function(
             "pip.install",
             [],
-            editable="{0}".format(",".join(editables)),
+            editable="{}".format(",".join(editables)),
             bin_env=self.venv_dir,
         )
 
@@ -563,6 +568,7 @@ class PipModuleTest(ModuleCase):
                 )
             )
 
+    @pytest.mark.slow_test
     def test_pip_install_multiple_editables_and_pkgs(self):
         editables = [
             "git+https://github.com/jek/blinker.git#egg=Blinker",
@@ -574,7 +580,7 @@ class PipModuleTest(ModuleCase):
         ret = self.run_function(
             "pip.install",
             ["pep8"],
-            editable="{0}".format(",".join(editables)),
+            editable="{}".format(",".join(editables)),
             bin_env=self.venv_dir,
         )
 
@@ -592,7 +598,7 @@ class PipModuleTest(ModuleCase):
             for package in ("Blinker", "SaltTesting", "pep8"):
                 self.assertRegex(
                     ret["stdout"],
-                    r"(?:.*)(Successfully installed)(?:.*)({0})(?:.*)".format(package),
+                    r"(?:.*)(Successfully installed)(?:.*)({})(?:.*)".format(package),
                 )
         except KeyError as exc:
             self.fail(
